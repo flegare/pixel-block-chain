@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite the paper below."
+title: "Pixel Block Chain (PBC)"
+abstract: >-
+  A lightweight, learning-free watermarking scheme that embeds a grid of
+  independent hash-linked chains in image least-significant bits, enabling
+  spatial tamper localization and crop-resilient provenance.
+authors:
+  - family-names: Légare
+    given-names: François
+    email: flegare@gmail.com
+  - family-names: Sion
+    given-names: Sion Israel
+    affiliation: École de technologie Supérieure de Montréal
+license: MIT
+preferred-citation:
+  type: conference-paper
+  title: "Pixel Block Chain: Spatial Tamper Localization and Crop-Resilient Provenance for Images in the Wild"
+  authors:
+    - family-names: Légare
+      given-names: François
+    - family-names: Sion
+      given-names: Sion Israel
+  conference:
+    name: "4th Workshop on MultiMedia FORensics in the WILD (MMForWILD), IEEE ICIP"
+  year: 2026
