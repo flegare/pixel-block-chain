@@ -1,0 +1,75 @@
+{
+  "schema": "pbc-paper-validation-v1",
+  "environment": {
+    "python": "3.13.0",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "numpy": "2.3.1",
+    "pillow": "11.3.0"
+  },
+  "grid": {
+    "images": [
+      {
+        "image": "leo",
+        "width": 978,
+        "height": 678,
+        "tiles": 40,
+        "psnr_k1_db": 51.1903,
+        "clean_green_tiles": 40,
+        "tampered_non_green_tiles": 1,
+        "false_positive_tiles": 0
+      },
+      {
+        "image": "synthetic_gradient",
+        "width": 512,
+        "height": 384,
+        "tiles": 12,
+        "psnr_k1_db": 51.1512,
+        "clean_green_tiles": 12,
+        "tampered_non_green_tiles": 1,
+        "false_positive_tiles": 0
+      },
+      {
+        "image": "synthetic_document",
+        "width": 512,
+        "height": 384,
+        "tiles": 12,
+        "psnr_k1_db": 50.111,
+        "clean_green_tiles": 12,
+        "tampered_non_green_tiles": 1,
+        "false_positive_tiles": 0
+      },
+      {
+        "image": "synthetic_noise",
+        "width": 512,
+        "height": 384,
+        "tiles": 12,
+        "psnr_k1_db": 51.1783,
+        "clean_green_tiles": 12,
+        "tampered_non_green_tiles": 1,
+        "false_positive_tiles": 0
+      }
+    ],
+    "mean_psnr_k1_db": 50.9077,
+    "std_psnr_k1_db": 0.4602,
+    "all_clean_tiles_green": true,
+    "all_tamper_runs_localized": true,
+    "total_false_positive_tiles": 0
+  },
+  "forest": {
+    "n_blocks": 1000,
+    "crop_width_fraction": 0.6,
+    "crop_height_fraction": 0.8,
+    "anchors_recovered": 443,
+    "survival_pct": 44.3,
+    "within_paper_range_41_1_to_44_6": true
+  },
+  "thresholds": {
+    "min_mean_psnr_k1_db": 50.0,
+    "forest_survival_range_pct": [
+      41.1,
+      44.6
+    ],
+    "expected_false_positive_tiles": 0
+  },
+  "passed": true
+}

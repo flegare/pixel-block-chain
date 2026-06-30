@@ -1,26 +1,52 @@
-# LaTeX build artifacts
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# Generated outputs from example scripts
+output/
+examples/img/coco_*/
+examples/img/flowers_*/
+examples/img/pets_*/
+examples/img/*_pbc.png
+examples/img/*_encoded*.png
+examples/img/reports/
+examples/output/
+
+# Paper build artifacts
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.synctex.gz
+paper/*.toc
 *.aux
-*.bbl
-*.blg
-*.fdb_latexmk
-*.fls
 *.log
 *.out
 *.synctex.gz
-*.toc
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-.venv/
-venv/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Editor
-.vscode/
-.idea/
-*.swp
+# SSL keys (never commit)
+web/server.key
+web/server.crt
+*.pem
+*.p12
+*.pfx
+*.key
+*.crt
+*.cer
+
+# Local environment and credentials
+.env
+.env.*
+*.sqlite
+*.db

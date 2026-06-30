@@ -1,0 +1,14 @@
+PBC Forest-Scatter Crop Survivability Results
+==================================================
+Image: 978x678 px  |  Crop: 60%x80% = 47.9% area
+
+n_blocks    PSNR   chain%   forest%   theory%
+--------------------------------------------
+     190    67.2     0.5%     42.6%     47.9%
+     500    63.0     0.2%     44.6%     47.9%
+   1,000    60.0     0.1%     44.2%     47.9%
+   2,000    57.0     0.1%     43.5%     47.9%
+   7,710    51.2     0.0%     41.1%     47.9%
+
+Grid-mode baseline: 0.0%
+Forest average crop survival: 43.2%

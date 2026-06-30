@@ -1,0 +1,16 @@
+PBC Format Robustness Report
+Image: 978x678  Tiles: 40
+
+Format             Outcome    GREEN/40   Size KB
+--------------------------------------------------
+PNG                PASS          40/40    1185.5
+BMP                PASS          40/40    1944.0
+TIFF-lossless      PASS          40/40    2005.0
+TIFF-raw           PASS          40/40    1942.8
+WebP-lossless      PASS          40/40     814.0
+JPEG-Q100          FAIL           0/40     757.3
+JPEG-Q95           FAIL           0/40     284.4
+JPEG-Q85           FAIL           0/40     185.7
+JPEG-Q75           FAIL           0/40     124.7
+WebP-Q90           FAIL           0/40     190.5
+WebP-Q75           FAIL           0/40      96.6

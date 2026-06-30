@@ -1,0 +1,52 @@
+PBC Margin QR Stamp -- Results
+Pages: 26  QR_SIZE: 220px  BINARIZE_T: 128  EC: M  Payload: 79B
+ORIGINATOR: PBC-MarginQR-2026
+
+ Page   Stamp ms  Verify   Chain   Content
+-------------------------------------------------------
+  001       255    PASS      OK        OK
+  002       238    PASS      OK        OK
+  003       224    PASS      OK        OK
+  004       249    PASS      OK        OK
+  005       288    PASS      OK        OK
+  006       235    PASS      OK        OK
+  007       211    PASS      OK        OK
+  008       226    PASS      OK        OK
+  009       219    PASS      OK        OK
+  010       289    PASS      OK        OK
+  011       272    PASS      OK        OK
+  012       240    PASS      OK        OK
+  013       214    PASS      OK        OK
+  014       244    PASS      OK        OK
+  015       221    PASS      OK        OK
+  016       233    PASS      OK        OK
+  017       228    PASS      OK        OK
+  018       275    PASS      OK        OK
+  019       260    PASS      OK        OK
+  020       237    PASS      OK        OK
+  021       302    PASS      OK        OK
+  022       228    PASS      OK        OK
+  023       216    PASS      OK        OK
+  024       215    PASS      OK        OK
+  025       196    PASS      OK        OK
+  026       229    PASS      OK        OK
+-------------------------------------------------------
+  Digital verify: 26/26 PASS
+
+Note on camera robustness:
+  The binarized SHA-256 content_hash provides exact digital
+  authentication.  Camera photographs of printed pages require
+  a perceptual hash (pHash/dHash) instead of SHA-256, since
+  anti-aliased PDF rendering creates near-threshold pixels that
+  flip under any illumination or noise variation.  The QR chain
+  and decode remain fully camera-readable (EC level M).
+
+Architecture:
+  Each page carries a 220x220px QR in the bottom-right margin.
+  Payload (79B): content_hash (binarized page SHA-256) + chain_hash (prev QR SHA-256)
+  Binarization at t=128 makes content_hash light-insensitive:
+  a camera photograph thresholded to black/white produces the
+  same hash as the original for printed text content.
+  The chain_hash binds page order -- insert/remove/reorder is detected.
+
+  Output PDF: PBC_Paper_v04_margin_qr.pdf  (25098 KB)

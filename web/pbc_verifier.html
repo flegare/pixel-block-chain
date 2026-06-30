@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PBC QR Verifier</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0d1117;
+      --surface: #161b22;
+      --border:  #30363d;
+      --accent:  #58a6ff;
+      --green:   #3fb950;
+      --yellow:  #d29922;
+      --red:     #f85149;
+      --text:    #e6edf3;
+      --muted:   #8b949e;
+      --radius:  10px;
+      --mono:    'SFMono-Regular', 'Consolas', 'Liberation Mono', monospace;
+    }
+
+    html, body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .app {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 0 12px 80px;
+      min-height: 100vh;
+    }
+
+    /* ── Header ──────────────────────────────────── */
+    header {
+      padding: 18px 0 12px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .logo-row { display: flex; align-items: center; gap: 10px; }
+    .logo-icon {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, #1f6feb, #58a6ff);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .logo-text h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+    .logo-text p  { font-size: 12px; color: var(--muted); }
+
+    /* ── Camera ──────────────────────────────────── */
+    .camera-wrap {
+      position: relative;
+      background: #000;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      margin-bottom: 12px;
+      aspect-ratio: 4 / 3;
+    }
+    #video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    #canvas { display: none; }
+
+    .scan-overlay {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none;
+    }
+    .scan-frame {
+      width: 52%; aspect-ratio: 1;
+      border: 2px solid rgba(88,166,255,.75);
+      border-radius: 6px;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,.35);
+      position: relative;
+    }
+    /* Corner brackets */
+    .scan-frame::before, .scan-frame::after {
+      content: ''; position: absolute;
+      width: 18px; height: 18px;
+      border-color: var(--accent); border-style: solid;
+    }
+    .scan-frame::before { top:-2px; left:-2px; border-width:3px 0 0 3px; border-radius:4px 0 0 0; }
+    .scan-frame::after  { bottom:-2px; right:-2px; border-width:0 3px 3px 0; border-radius:0 0 4px 0; }
+    .scan-line {
+      position: absolute; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      animation: scan 2.4s linear infinite;
+    }
+    @keyframes scan {
+      0%  { top: 0%;   opacity: 1; }
+      96% { top: 100%; opacity: 1; }
+      100%{ top: 100%; opacity: 0; }
+    }
+
+    /* ── Status bar ──────────────────────────────── */
+    .status-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      background: var(--muted);
+    }
+    .dot.scanning { background: var(--accent); animation: pulse 1.5s ease-in-out infinite; }
+    .dot.found    { background: var(--green); }
+    .dot.error    { background: var(--red); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    /* ── Result card ─────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .card.show { display: block; }
+
+    .card-head {
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .card-title {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .6px;
+      color: var(--accent);
+    }
+    .pg-badge {
+      background: var(--accent); color: #000;
+      font-size: 11px; font-weight: 700;
+      padding: 2px 8px; border-radius: 20px;
+    }
+    .card-body { padding: 10px 14px; }
+
+    .field {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 2px 8px;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(48,54,61,.5);
+      align-items: start;
+    }
+    .field:last-child { border-bottom: none; }
+    .fl { font-size: 11.5px; color: var(--muted); font-weight: 500; padding-top: 1px; }
+    .fv {
+      font-family: var(--mono); font-size: 11px;
+      color: var(--text); word-break: break-all;
+    }
+    .fv.hi { color: var(--green); font-weight: 600; font-size: 13px; }
+
+    /* ── Chain card ──────────────────────────────── */
+    .chain-row {
+      padding: 11px 14px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .chain-icon { font-size: 22px; flex-shrink: 0; }
+    .chain-lbl  { font-size: 14px; font-weight: 700; }
+    .chain-sub  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .chain-row.ok    { border-left: 3px solid var(--green); }
+    .chain-row.gap   { border-left: 3px solid var(--red); }
+    .chain-row.first { border-left: 3px solid var(--accent); }
+
+    /* ── Notice ──────────────────────────────────── */
+    .notice {
+      background: rgba(210,153,34,.07);
+      border: 1px solid rgba(210,153,34,.3);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font-size: 12px; color: var(--yellow); line-height: 1.55;
+      margin-bottom: 12px;
+    }
+    .notice strong { color: #e3b341; }
+
+    /* ── Session log ─────────────────────────────── */
+    .sess-head {
+      padding: 7px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .5px; color: var(--muted);
+    }
+    #clearBtn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted); font-size: 11px;
+      padding: 2px 8px; border-radius: 4px; cursor: pointer;
+    }
+    #clearBtn:hover { border-color: var(--red); color: var(--red); }
+    .sess-body { padding: 6px 14px; }
+    .sess-empty { font-size: 12px; color: var(--muted); padding: 4px 0 6px; font-style: italic; }
+
+    .sess-row {
+      display: flex; align-items: center; gap: 7px;
+      padding: 4px 0; font-size: 12px;
+      border-bottom: 1px solid rgba(48,54,61,.4);
+    }
+    .sess-row:last-child { border-bottom: none; }
+    .sess-pg { font-family: var(--mono); font-weight: 700; color: var(--accent); width: 30px; flex-shrink: 0; }
+    .stag {
+      font-size: 10px; padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
+    }
+    .stag.ok    { background: rgba(63,185,80,.15);  color: var(--green); }
+    .stag.gap   { background: rgba(248,81,73,.15);  color: var(--red); }
+    .stag.first { background: rgba(88,166,255,.12); color: var(--accent); }
+    .sess-hash { font-family: var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .cam-err { padding: 28px 16px; text-align: center; color: var(--muted); font-size: 13px; }
+    .cam-err .ico { font-size: 38px; margin-bottom: 10px; }
+
+    footer {
+      padding: 16px 0; text-align: center;
+      font-size: 11px; color: var(--muted);
+      border-top: 1px solid var(--border); margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo-row">
+      <div class="logo-icon">&#x26D3;&#xFE0F;</div>
+      <div class="logo-text">
+        <h1>PBC Verifier</h1>
+        <p>Pixel Block Chain &mdash; Margin QR Certificate Scanner</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="camera-wrap" id="camWrap">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+    <div class="scan-overlay">
+      <div class="scan-frame"><div class="scan-line"></div></div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="dot scanning" id="dot"></div>
+    <span id="statusTxt">Initialising camera&hellip;</span>
+  </div>
+
+  <!-- Result -->
+  <div class="card" id="resultCard">
+    <div class="card-head">
+      <span class="card-title">QR Certificate</span>
+      <span class="pg-badge" id="pgBadge">PG &mdash;</span>
+    </div>
+    <div class="card-body">
+      <div class="field"><span class="fl">Version</span>      <span class="fv" id="fVer">&mdash;</span></div>
+      <div class="field"><span class="fl">Page number</span>  <span class="fv hi" id="fPg">&mdash;</span></div>
+      <div class="field"><span class="fl">Session date</span> <span class="fv" id="fTs">&mdash;</span></div>
+      <div class="field"><span class="fl">Originator</span>   <span class="fv" id="fOid">&mdash;</span></div>
+      <div class="field"><span class="fl">Content hash</span> <span class="fv" id="fCh">&mdash;</span></div>
+      <div class="field"><span class="fl">Chain hash</span>   <span class="fv" id="fHh">&mdash;</span></div>
+      <div class="field"><span class="fl">Payload</span>      <span class="fv" id="fSz">&mdash;</span></div>
+    </div>
+  </div>
+
+  <!-- Chain check -->
+  <div class="card show" id="chainCard">
+    <div class="chain-row first" id="chainRow">
+      <div class="chain-icon" id="chainIco">&#x1F517;</div>
+      <div>
+        <div class="chain-lbl" id="chainLbl">No pages scanned yet</div>
+        <div class="chain-sub" id="chainSub">Point camera at a QR code in the document margin</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notice">
+    <strong>Camera mode — sequence check only.</strong><br>
+    Full SHA-256 chain verification requires digital mode (pixel-level hash comparison of the rendered QR array). Camera scanning confirms: QR decode, payload parse, page-number sequence continuity.
+  </div>
+
+  <!-- Session log -->
+  <div class="card show" id="sessCard">
+    <div class="sess-head">
+      <span>Session log</span>
+      <button id="clearBtn">Clear</button>
+    </div>
+    <div class="sess-body" id="sessBody">
+      <div class="sess-empty" id="sessEmpty">No pages scanned yet.</div>
+    </div>
+  </div>
+
+  <footer>
+    PBC &mdash; Pixel Block Chain &copy; 2026 Fran&ccedil;ois L&eacute;gar&eacute; &mdash; MIT License
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+'use strict';
+
+// ── Constants ────────────────────────────────────────────────────────────────
+const PAYLOAD_LEN  = 79;
+const EXPECTED_TS  = 0x20260101;
+// generate_originator_id("flegare@gmail.com") = SHA-256[:4] as uint32 BE
+// = 0x335D981E  → stored as 8 bytes big-endian: 00000000335d981e
+const EXPECTED_OID = '00000000335d981e';
+const SESS_KEY     = 'pbc_scan_log_v5';
+const DEBOUNCE_MS  = 3000;
+
+// ── DOM ──────────────────────────────────────────────────────────────────────
+const video    = document.getElementById('video');
+const canvas   = document.getElementById('canvas');
+const ctx      = canvas.getContext('2d', { willReadFrequently: true });
+const dot      = document.getElementById('dot');
+const statusTxt= document.getElementById('statusTxt');
+const resultCard=document.getElementById('resultCard');
+const chainRow = document.getElementById('chainRow');
+const chainIco = document.getElementById('chainIco');
+const chainLbl = document.getElementById('chainLbl');
+const chainSub = document.getElementById('chainSub');
+const sessBody = document.getElementById('sessBody');
+const sessEmpty= document.getElementById('sessEmpty');
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const hex = b => Array.from(b).map(x => x.toString(16).padStart(2,'0')).join('');
+
+function fmtTs(ts) {
+  if (ts === EXPECTED_TS) return '2026-01-01 signing session (0x20260101)';
+  return '0x' + ts.toString(16).toUpperCase().padStart(8,'0') + ' (unknown)';
+}
+
+function fmtOid(h) {
+  return h + (h === EXPECTED_OID ? '\nflegare@gmail.com' : '\n(unknown originator)');
+}
+
+// ── Payload parser ───────────────────────────────────────────────────────────
+// Struct: ">BH4s8s32s32s" = 1+2+4+8+32+32 = 79 bytes
+//   [0]    version       uint8
+//   [1:3]  page_num      uint16 BE
+//   [3:7]  timestamp     uint32 BE  (4-byte raw field, interpret as uint32)
+//   [7:15] originator_id 8 bytes
+//   [15:47]content_hash  32 bytes
+//   [47:79]chain_hash    32 bytes
+function parsePayload(raw) {
+  if (!raw || raw.length < PAYLOAD_LEN) return null;
+  const v = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+  return {
+    version     : v.getUint8(0),
+    page_num    : v.getUint16(1, false),
+    timestamp   : v.getUint32(3, false),
+    oid_hex     : hex(raw.slice(7, 15)),
+    content_hex : hex(raw.slice(15, 47)),
+    chain_hex   : hex(raw.slice(47, 79)),
+    len         : raw.length,
+  };
+}
+
+// ── Session log ──────────────────────────────────────────────────────────────
+function loadLog() {
+  try { return JSON.parse(sessionStorage.getItem(SESS_KEY) || '[]'); }
+  catch { return []; }
+}
+function saveLog(log) {
+  try { sessionStorage.setItem(SESS_KEY, JSON.stringify(log)); } catch {}
+}
+function clearSession() {
+  sessionStorage.removeItem(SESS_KEY);
+  renderLog([]);
+  setChain('first', '&#x1F517;', 'Session cleared', 'Scan the first page to start a new sequence.');
+  resultCard.classList.remove('show');
+}
+
+// ── Chain check ──────────────────────────────────────────────────────────────
+function checkSeq(parsed, log) {
+  if (log.length === 0) {
+    return { state:'first', icon:'&#x1F517;', lbl:'First page in session',
+             sub:`Page ${parsed.page_num} — chain started`, tag:'FIRST' };
+  }
+  const last = log[log.length - 1];
+  if (parsed.page_num === last.page_num + 1) {
+    return { state:'ok', icon:'&#x2705;', lbl:'SEQUENCE OK',
+             sub:`Page ${last.page_num} → Page ${parsed.page_num} — consecutive`, tag:'OK' };
+  }
+  const d = parsed.page_num - last.page_num;
+  const desc = d === 0 ? `Page ${parsed.page_num} scanned again`
+             : d < 0  ? `Went backwards (${last.page_num} → ${parsed.page_num})`
+                       : `Gap: ${d-1} page(s) skipped (${last.page_num} → ${parsed.page_num})`;
+  return { state:'gap', icon:'&#x26A0;&#xFE0F;', lbl:'SEQUENCE GAP', sub:desc, tag:'GAP' };
+}
+
+// ── UI ────────────────────────────────────────────────────────────────────────
+function setStatus(state, msg) {
+  dot.className = 'dot ' + state;
+  statusTxt.textContent = msg;
+}
+
+function setChain(state, ico, lbl, sub) {
+  chainRow.className = 'chain-row ' + state;
+  chainIco.innerHTML = ico;
+  chainLbl.textContent = lbl;
+  chainSub.textContent = sub;
+}
+
+function renderResult(p) {
+  resultCard.classList.add('show');
+  document.getElementById('pgBadge').textContent = 'PG ' + p.page_num;
+  document.getElementById('fVer').textContent = p.version;
+  document.getElementById('fPg').textContent  = p.page_num;
+  document.getElementById('fTs').textContent  = fmtTs(p.timestamp);
+  document.getElementById('fOid').textContent = fmtOid(p.oid_hex);
+  document.getElementById('fCh').textContent  = p.content_hex;
+  document.getElementById('fHh').textContent  = p.chain_hex;
+  document.getElementById('fSz').textContent  = p.len + ' bytes';
+}
+
+function renderLog(log) {
+  sessEmpty.style.display = log.length ? 'none' : '';
+  Array.from(sessBody.querySelectorAll('.sess-row')).forEach(r => r.remove());
+  log.forEach(e => {
+    const row = document.createElement('div');
+    row.className = 'sess-row';
+    row.innerHTML =
+      `<span class="sess-pg">#${e.pg}</span>` +
+      `<span class="stag ${e.state}">${e.tag}</span>` +
+      `<span class="sess-hash">${e.chain.slice(0,16)}&hellip;</span>`;
+    sessBody.appendChild(row);
+  });
+}
+
+// ── Scan processing ──────────────────────────────────────────────────────────
+let lastPg = null, lastAt = 0;
+
+function onScan(binaryData) {
+  const p = parsePayload(binaryData);
+  if (!p) {
+    setStatus('error', `QR found but payload invalid (${binaryData ? binaryData.length : 0} B, need ${PAYLOAD_LEN})`);
+    return;
+  }
+
+  const now = Date.now();
+  if (p.page_num === lastPg && now - lastAt < DEBOUNCE_MS) return;
+  lastPg = p.page_num; lastAt = now;
+
+  const log = loadLog();
+  const seq = checkSeq(p, log);
+
+  log.push({ pg: p.page_num, chain: p.chain_hex, state: seq.state, tag: seq.tag });
+  saveLog(log);
+
+  renderResult(p);
+  setChain(seq.state, seq.icon, seq.lbl, seq.sub);
+  renderLog(log);
+  setStatus('found', `Page ${p.page_num} decoded — ${seq.tag}`);
+}
+
+// ── Camera + scan loop ────────────────────────────────────────────────────────
+let active = false;
+
+function loop() {
+  if (!active) return;
+  if (video.readyState >= video.HAVE_ENOUGH_DATA) {
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+    if (code && code.binaryData && code.binaryData.length >= PAYLOAD_LEN) {
+      onScan(code.binaryData);
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+async function startCam() {
+  setStatus('scanning', 'Requesting camera…');
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
+      audio: false,
+    });
+    video.srcObject = s;
+    await video.play();
+    active = true;
+    setStatus('scanning', 'Scanning for PBC margin QR codes…');
+    requestAnimationFrame(loop);
+  } catch (e) {
+    setStatus('error', 'Camera error: ' + e.message);
+    document.getElementById('camWrap').innerHTML =
+      '<div class="cam-err"><div class="ico">📷</div>' +
+      '<p>Camera access denied or unavailable.<br>Grant camera permission and reload.</p></div>';
+  }
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+document.getElementById('clearBtn').addEventListener('click', clearSession);
+
+(function init() {
+  const log = loadLog();
+  renderLog(log);
+  if (log.length) {
+    const last = log[log.length - 1];
+    setChain('first', '&#x1F517;', 'Session restored',
+             `${log.length} page(s) in session. Last: page ${last.pg}`);
+  }
+  startCam();
+})();
+</script>
+</body>
+</html>

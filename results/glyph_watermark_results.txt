@@ -1,0 +1,18 @@
+PBC Glyph Watermark Demo Results
+Image: 800x1000  Tiles: 6x8  TileSize: 133x125  GlyphSize: 44
+QR_MODULES=11x11LINE_ALPHA=0.65  LINE_DARK=55  CORR_THRESHOLD=0.3
+PSNR: 20.2 dB
+
+Scenario                              OK/Total  Accuracy  mean_corr
+-------------------------------------------------------------------
+  Clean digital                       43/48       89.6%      0.681
+  Scan noise sigma=5                  41/48       85.4%      0.655
+  Scan noise sigma=10                 41/48       85.4%      0.654
+  Tamper detection                  DETECTED
+
+Key advantage:
+  Cross-correlation detection is background-independent.
+  The expected glyph template is regenerated from the hash and
+  correlated against the tile region.  Background content is
+  uncorrelated with the specific glyph pattern and contributes
+  ~0 to the correlation signal.

@@ -1,0 +1,10 @@
+PBC Camera RAW Workflow Demo Results
+Synthetic RGGB Bayer mosaic (simulated Sony IMX sensor)
+
+Resolution                   MP    Enc ms    Ver ms     PSNR   GREEN%   PNG roundtrip
+--------------------------------------------------------------------------------
+4032x3024                  12.2     19150     18117     51.2    100.0  PASS
+6000x4000                  24.0     39289     33809     51.2    100.0  PASS
+
+Conclusion: PBC operates identically on demosaiced RAW arrays as on JPEG/PNG.
+Mandatory: save as lossless PNG or TIFF after encode (never JPEG).

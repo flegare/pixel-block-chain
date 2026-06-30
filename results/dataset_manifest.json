@@ -1,0 +1,986 @@
+{
+  "schema": "pbc-dataset-manifest-v2",
+  "paper": "Pixel Block Chain: Spatial Tamper Localization and Crop-Resilient Provenance for Images in the Wild",
+  "results_source": "results/multi_image_eval_results.txt",
+  "real_image_source": "external benchmark image directory supplied via --source-dir",
+  "summary": {
+    "total_images": 99,
+    "real_images": 94,
+    "synthetic_images": 5,
+    "real_image_counts": {
+      "COCO": 60,
+      "Oxford Flowers 102": 12,
+      "demo photograph": 1,
+      "Oxford-IIIT Pets": 21
+    }
+  },
+  "real_images": [
+    {
+      "name": "coco_00_animal_domestic.png",
+      "manifest_path": "benchmark/real/coco_00_animal_domestic.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 672921,
+      "sha256": "d71fb5ae0c6e7736d930dc5fd6e3e9deb64ce415032e1c3ed7e78ffc71cf44ec"
+    },
+    {
+      "name": "coco_01_animal_large.png",
+      "manifest_path": "benchmark/real/coco_01_animal_large.png",
+      "source_group": "COCO",
+      "width": 500,
+      "height": 331,
+      "mode": "RGB",
+      "bytes": 254233,
+      "sha256": "5910ac646c559ceeede40bffcf7230248b5d18d3beca795b74e939494e51805f"
+    },
+    {
+      "name": "coco_02_vehicle.png",
+      "manifest_path": "benchmark/real/coco_02_vehicle.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 388,
+      "mode": "RGB",
+      "bytes": 483494,
+      "sha256": "e7cde43867885b7ff762f313df93a7a900b1b34577e4beeb0949ce3847f40096"
+    },
+    {
+      "name": "coco_03_outdoor_scene.png",
+      "manifest_path": "benchmark/real/coco_03_outdoor_scene.png",
+      "source_group": "COCO",
+      "width": 500,
+      "height": 375,
+      "mode": "RGB",
+      "bytes": 371112,
+      "sha256": "a2ba7051cdaa58a402dd7ec01ac17b529b8b0db4ff7d7c579d678e337cfeb22a"
+    },
+    {
+      "name": "coco_04_indoor_appliance.png",
+      "manifest_path": "benchmark/real/coco_04_indoor_appliance.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 379544,
+      "sha256": "465329047963a8bbe7c88a216615107a39d3cebb3c4cd465dd7f286ff345e73f"
+    },
+    {
+      "name": "coco_05_furniture.png",
+      "manifest_path": "benchmark/real/coco_05_furniture.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 547231,
+      "sha256": "1b3a6c7e4af6fc566c2777b05fd9a288b11bc1f92797e6d0c2927b2b97324eb2"
+    },
+    {
+      "name": "coco_06_food.png",
+      "manifest_path": "benchmark/real/coco_06_food.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 424,
+      "mode": "RGB",
+      "bytes": 460192,
+      "sha256": "6052154bf94238beca194392f1890256b201a61b5dcd06af291e4a35a32e6dac"
+    },
+    {
+      "name": "coco_07_food_cooked.png",
+      "manifest_path": "benchmark/real/coco_07_food_cooked.png",
+      "source_group": "COCO",
+      "width": 408,
+      "height": 500,
+      "mode": "RGB",
+      "bytes": 414253,
+      "sha256": "7a65694504540cab8dcda6e638e10402dc43284f2a62b5574016ddf41bc140d3"
+    },
+    {
+      "name": "coco_08_sports.png",
+      "manifest_path": "benchmark/real/coco_08_sports.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 503116,
+      "sha256": "df4ee140d4273865fc20f66e59a1c99eddb7af8b914395e9053fdedb9e04ef01"
+    },
+    {
+      "name": "coco_09_person.png",
+      "manifest_path": "benchmark/real/coco_09_person.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 427,
+      "mode": "RGB",
+      "bytes": 538012,
+      "sha256": "a5bc2e61390708423f34889132d968cd25ff293ffa9aadf04b4f17d60161fe5b"
+    },
+    {
+      "name": "coco_10_random.png",
+      "manifest_path": "benchmark/real/coco_10_random.png",
+      "source_group": "COCO",
+      "width": 500,
+      "height": 364,
+      "mode": "RGB",
+      "bytes": 300133,
+      "sha256": "aba863b3fc20a08e09baa5cef0d8e404cefba8df26002aee424a127dbe0e1c05"
+    },
+    {
+      "name": "coco_11_random.png",
+      "manifest_path": "benchmark/real/coco_11_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 426,
+      "mode": "RGB",
+      "bytes": 509662,
+      "sha256": "bfc7d2b62b8cded47fef04185ff65e0deba849275697e12aa28cb6770809c6c1"
+    },
+    {
+      "name": "coco_12_random.png",
+      "manifest_path": "benchmark/real/coco_12_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 453,
+      "mode": "RGB",
+      "bytes": 295905,
+      "sha256": "43d7c4ad6b7dc22d6fc560754dc53c8ea8cd90df90ae88d1c77d863a41b55fb5"
+    },
+    {
+      "name": "coco_13_random.png",
+      "manifest_path": "benchmark/real/coco_13_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 383,
+      "mode": "RGB",
+      "bytes": 529877,
+      "sha256": "3cce9a6e50d4b794d1b9a185aae044e7314644ceb077a82b61b4ff475afd4eee"
+    },
+    {
+      "name": "coco_14_random.png",
+      "manifest_path": "benchmark/real/coco_14_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 427,
+      "mode": "RGB",
+      "bytes": 170357,
+      "sha256": "e6fbb6f74d05f9904c7fb33865b67b06a8173c7d9f02b41fe7624aefb05774da"
+    },
+    {
+      "name": "coco_15_random.png",
+      "manifest_path": "benchmark/real/coco_15_random.png",
+      "source_group": "COCO",
+      "width": 500,
+      "height": 334,
+      "mode": "RGB",
+      "bytes": 300437,
+      "sha256": "febba2da58c1df642bc93b6aed65920f694d0c4e4f6adc7841875a8964643687"
+    },
+    {
+      "name": "coco_16_random.png",
+      "manifest_path": "benchmark/real/coco_16_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 646537,
+      "sha256": "bfca49a75680d6f74d8a551fb613e5abf743c1db294c092a27fad8b156872a31"
+    },
+    {
+      "name": "coco_17_random.png",
+      "manifest_path": "benchmark/real/coco_17_random.png",
+      "source_group": "COCO",
+      "width": 612,
+      "height": 612,
+      "mode": "RGB",
+      "bytes": 615384,
+      "sha256": "f1f39bc52eac247f5a457e88b83322c244df6b03f8da05e67657faf37ac48007"
+    },
+    {
+      "name": "coco_18_random.png",
+      "manifest_path": "benchmark/real/coco_18_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 427,
+      "mode": "RGB",
+      "bytes": 473680,
+      "sha256": "03453ef5e866fcd46b2cfa47678062f539694e57211ba25ab997a432ec42fd65"
+    },
+    {
+      "name": "coco_19_random.png",
+      "manifest_path": "benchmark/real/coco_19_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 361,
+      "mode": "RGB",
+      "bytes": 439800,
+      "sha256": "132de09972c4411052ac3a3a77d149b25f077a564c4bf185996a9548d34ff389"
+    },
+    {
+      "name": "coco_20_random.png",
+      "manifest_path": "benchmark/real/coco_20_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 427,
+      "mode": "RGB",
+      "bytes": 593719,
+      "sha256": "6bb810d1390ccb75762a86f300b9c94dfa3486cf06652042182f9eea63ae0978"
+    },
+    {
+      "name": "coco_21_random.png",
+      "manifest_path": "benchmark/real/coco_21_random.png",
+      "source_group": "COCO",
+      "width": 480,
+      "height": 640,
+      "mode": "RGB",
+      "bytes": 494067,
+      "sha256": "7d19a41dd8c6fc6b314f899a9f63ebb830003f7041875b7686afc6c1c4738fa3"
+    },
+    {
+      "name": "coco_22_random.png",
+      "manifest_path": "benchmark/real/coco_22_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 545604,
+      "sha256": "d8f71c8fdc077d534a9798c39aec9840e3fa00a02b7410784af40deec6aa97c7"
+    },
+    {
+      "name": "coco_23_random.png",
+      "manifest_path": "benchmark/real/coco_23_random.png",
+      "source_group": "COCO",
+      "width": 500,
+      "height": 400,
+      "mode": "RGB",
+      "bytes": 392900,
+      "sha256": "d500c9fe0c7277440c576a0883ac5ce54c808a6272e6731c30a9bcf5af3e5519"
+    },
+    {
+      "name": "coco_24_random.png",
+      "manifest_path": "benchmark/real/coco_24_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 427,
+      "mode": "RGB",
+      "bytes": 657564,
+      "sha256": "d155d7e2f0a8be44b7186a2b94139e36c2fb88f94e883a59cb8eae29680034cd"
+    },
+    {
+      "name": "coco_25_random.png",
+      "manifest_path": "benchmark/real/coco_25_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 534495,
+      "sha256": "2a24ff7d2e12f4bc4e1d3a96df272b4b9d02684d52d3d14357362155ac7074e8"
+    },
+    {
+      "name": "coco_26_random.png",
+      "manifest_path": "benchmark/real/coco_26_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 661290,
+      "sha256": "c010d129ef05a57db5ad210cb309b475654eec5fc8a69ff76ba752f3230e3221"
+    },
+    {
+      "name": "coco_27_random.png",
+      "manifest_path": "benchmark/real/coco_27_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 425,
+      "mode": "RGB",
+      "bytes": 486219,
+      "sha256": "386183fb7875b81cf294387429b86aed4e285511ad39b7ec5a4e7f334df6e63a"
+    },
+    {
+      "name": "coco_28_random.png",
+      "manifest_path": "benchmark/real/coco_28_random.png",
+      "source_group": "COCO",
+      "width": 427,
+      "height": 640,
+      "mode": "RGB",
+      "bytes": 505453,
+      "sha256": "7dff831ecf7d2808f0f8e732cbafed9f98562549afdc2fd62bf8d43fbfc8be94"
+    },
+    {
+      "name": "coco_29_random.png",
+      "manifest_path": "benchmark/real/coco_29_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 651984,
+      "sha256": "2540783a192259f7418bd46a652bc9dc5f023d3f44c5dfa170b83ec788158700"
+    },
+    {
+      "name": "coco_30_random.png",
+      "manifest_path": "benchmark/real/coco_30_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 408,
+      "mode": "RGB",
+      "bytes": 652160,
+      "sha256": "c4977391bdec745c820d4f344bdb8c090ccb02a14c04c6d55e6ba28471db9108"
+    },
+    {
+      "name": "coco_31_random.png",
+      "manifest_path": "benchmark/real/coco_31_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 427,
+      "mode": "RGB",
+      "bytes": 270207,
+      "sha256": "e1cd2f33c4620e1810677b123c9fb8e2570cfc2a59e0e9ae0adc8b8ca45b0d70"
+    },
+    {
+      "name": "coco_32_random.png",
+      "manifest_path": "benchmark/real/coco_32_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 429,
+      "mode": "RGB",
+      "bytes": 537802,
+      "sha256": "059072f68d6b3873825586f880e0d4a3d8f3d431553a395999773382d48e0899"
+    },
+    {
+      "name": "coco_33_random.png",
+      "manifest_path": "benchmark/real/coco_33_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 510632,
+      "sha256": "8884714a14e36c9abb450921da89d5a601b209b8e34c92e7b5bc19423eeef174"
+    },
+    {
+      "name": "coco_34_random.png",
+      "manifest_path": "benchmark/real/coco_34_random.png",
+      "source_group": "COCO",
+      "width": 360,
+      "height": 640,
+      "mode": "RGB",
+      "bytes": 305716,
+      "sha256": "d4ed508ceab21c7dbe36e1691ec8398a5f6b93d9b674e655d43b338fd31534ee"
+    },
+    {
+      "name": "coco_35_random.png",
+      "manifest_path": "benchmark/real/coco_35_random.png",
+      "source_group": "COCO",
+      "width": 426,
+      "height": 640,
+      "mode": "RGB",
+      "bytes": 305526,
+      "sha256": "4073d0b1fa8be068908bc614f836d4c2f56bbe648fa77625f619b8e1ef17b0dd"
+    },
+    {
+      "name": "coco_36_random.png",
+      "manifest_path": "benchmark/real/coco_36_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 537656,
+      "sha256": "317ae9bd477fa53af4a970a4fd0be4b88bfdd3fdcdb6714e717b47cfedc47de6"
+    },
+    {
+      "name": "coco_37_random.png",
+      "manifest_path": "benchmark/real/coco_37_random.png",
+      "source_group": "COCO",
+      "width": 500,
+      "height": 350,
+      "mode": "RGB",
+      "bytes": 207411,
+      "sha256": "6ab7b5cf6d4cdf8b714eb11feb760e51fd84b11ffebcdb8efd298295a86dc8d6"
+    },
+    {
+      "name": "coco_38_random.png",
+      "manifest_path": "benchmark/real/coco_38_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 427,
+      "mode": "RGB",
+      "bytes": 513014,
+      "sha256": "c71ac09c9ccfd3ad0683bd1b19d51b8c6ba81c9c0c34655596bce06e695b9ca2"
+    },
+    {
+      "name": "coco_39_random.png",
+      "manifest_path": "benchmark/real/coco_39_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 525990,
+      "sha256": "d510b159111f89b7d57f18773d802551dd7add1def655a4263c2126ee06440fe"
+    },
+    {
+      "name": "coco_40_random.png",
+      "manifest_path": "benchmark/real/coco_40_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 607275,
+      "sha256": "aadc0c3cc9572561dd87ccba62e6befe7202bbc6821443ec8943c967b8c67fee"
+    },
+    {
+      "name": "coco_41_random.png",
+      "manifest_path": "benchmark/real/coco_41_random.png",
+      "source_group": "COCO",
+      "width": 521,
+      "height": 640,
+      "mode": "RGB",
+      "bytes": 520620,
+      "sha256": "665e6972a3ef1c55b18b01b7589fa0f3cbb96364fd685610558a2cd0f54db098"
+    },
+    {
+      "name": "coco_42_random.png",
+      "manifest_path": "benchmark/real/coco_42_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 670043,
+      "sha256": "cb54f980c861cf01a5357f6fb747f7057db52ac128581c0957d5d90f2decaa8a"
+    },
+    {
+      "name": "coco_43_random.png",
+      "manifest_path": "benchmark/real/coco_43_random.png",
+      "source_group": "COCO",
+      "width": 638,
+      "height": 640,
+      "mode": "RGB",
+      "bytes": 314235,
+      "sha256": "cc45029bf5a5d3d0b3cd276ff666686116b69bf3566f80383e02c583997225bc"
+    },
+    {
+      "name": "coco_44_random.png",
+      "manifest_path": "benchmark/real/coco_44_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 423,
+      "mode": "RGB",
+      "bytes": 491215,
+      "sha256": "495e36fa920bf41c2d87546e873b4e2c2c3d27edf6dc903aa3369565fe93b31d"
+    },
+    {
+      "name": "coco_45_random.png",
+      "manifest_path": "benchmark/real/coco_45_random.png",
+      "source_group": "COCO",
+      "width": 500,
+      "height": 334,
+      "mode": "RGB",
+      "bytes": 211735,
+      "sha256": "356e079f8e605b8b3f802c1866287e0aea321a16c6e3c0e3acd760bb01bf18c9"
+    },
+    {
+      "name": "coco_46_random.png",
+      "manifest_path": "benchmark/real/coco_46_random.png",
+      "source_group": "COCO",
+      "width": 480,
+      "height": 640,
+      "mode": "RGB",
+      "bytes": 667287,
+      "sha256": "b6d0ba21ebf3ade407cef7791dd6385051a8ebfc40bcf9147876739f82d27136"
+    },
+    {
+      "name": "coco_47_random.png",
+      "manifest_path": "benchmark/real/coco_47_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 683748,
+      "sha256": "67f1909f1523713d600a2e34e9f59d5a9af3d3718610233c18af0e0f315de044"
+    },
+    {
+      "name": "coco_48_random.png",
+      "manifest_path": "benchmark/real/coco_48_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 343099,
+      "sha256": "0412ff48652a2e6d03a703ceec12aa4e027e77083f35c955ef153f15677f33dc"
+    },
+    {
+      "name": "coco_49_random.png",
+      "manifest_path": "benchmark/real/coco_49_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 429,
+      "mode": "RGB",
+      "bytes": 620848,
+      "sha256": "5fd602ebe6a530949f944279d95f17f06890af6cefbdd9b9a39d731057dae132"
+    },
+    {
+      "name": "coco_50_random.png",
+      "manifest_path": "benchmark/real/coco_50_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 650108,
+      "sha256": "6df370994015dee7594210cb5f86298c4e18b508eb23dfcace40564cdd055097"
+    },
+    {
+      "name": "coco_51_random.png",
+      "manifest_path": "benchmark/real/coco_51_random.png",
+      "source_group": "COCO",
+      "width": 470,
+      "height": 640,
+      "mode": "RGB",
+      "bytes": 462635,
+      "sha256": "f326611686b3b0bfb9787285163524b9294268b1af7ac8b548fc5f0bc9687655"
+    },
+    {
+      "name": "coco_52_random.png",
+      "manifest_path": "benchmark/real/coco_52_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 514142,
+      "sha256": "d655cb8508a03144c9f8ff95d739fb8cef6e0a4b2bb7ded852ccbbf4911f5577"
+    },
+    {
+      "name": "coco_53_random.png",
+      "manifest_path": "benchmark/real/coco_53_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 427,
+      "mode": "RGB",
+      "bytes": 464352,
+      "sha256": "9b4b8fbdd49a89b45388d68d9d68116d3423bb7c5f5f9c04cd9a5b42006a71fb"
+    },
+    {
+      "name": "coco_54_random.png",
+      "manifest_path": "benchmark/real/coco_54_random.png",
+      "source_group": "COCO",
+      "width": 424,
+      "height": 640,
+      "mode": "RGB",
+      "bytes": 478868,
+      "sha256": "e22a10cbd076eb7ac346df5d9aade514e4efb2900e6ca77405b2e9ace523c514"
+    },
+    {
+      "name": "coco_55_random.png",
+      "manifest_path": "benchmark/real/coco_55_random.png",
+      "source_group": "COCO",
+      "width": 500,
+      "height": 350,
+      "mode": "RGB",
+      "bytes": 211651,
+      "sha256": "dfdd9540db58c3306658d84859f0f5ae6b036836985207aa9d64a66e7750784f"
+    },
+    {
+      "name": "coco_56_random.png",
+      "manifest_path": "benchmark/real/coco_56_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 426,
+      "mode": "RGB",
+      "bytes": 497260,
+      "sha256": "1f2087a88839d611d91ad412cbb5e7bd5764c866d89fcc5fb8f03cc429d8104d"
+    },
+    {
+      "name": "coco_57_random.png",
+      "manifest_path": "benchmark/real/coco_57_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 426,
+      "mode": "RGB",
+      "bytes": 444294,
+      "sha256": "b8317a5c3f3534ba76a4b696b160a87ad2d11bd77f3c910a1ba7aaa74eb40d06"
+    },
+    {
+      "name": "coco_58_random.png",
+      "manifest_path": "benchmark/real/coco_58_random.png",
+      "source_group": "COCO",
+      "width": 612,
+      "height": 612,
+      "mode": "RGB",
+      "bytes": 565659,
+      "sha256": "35c97f38115b48996f5bfee44a905886081d08f1c0649a3c1f7abd8562c44ffd"
+    },
+    {
+      "name": "coco_59_random.png",
+      "manifest_path": "benchmark/real/coco_59_random.png",
+      "source_group": "COCO",
+      "width": 640,
+      "height": 480,
+      "mode": "RGB",
+      "bytes": 572800,
+      "sha256": "d8bf8e6155da1eb9d8793b6624e4bd38c84a94f2774d6154f5f763c2ad7ecc45"
+    },
+    {
+      "name": "flowers_cls000.png",
+      "manifest_path": "benchmark/real/flowers_cls000.png",
+      "source_group": "Oxford Flowers 102",
+      "width": 750,
+      "height": 500,
+      "mode": "RGB",
+      "bytes": 423402,
+      "sha256": "ea52bc0df4f398abf4ed66d40f27c15ea398d7fde8e9353f2cdcaeb44a66e747"
+    },
+    {
+      "name": "flowers_cls001.png",
+      "manifest_path": "benchmark/real/flowers_cls001.png",
+      "source_group": "Oxford Flowers 102",
+      "width": 500,
+      "height": 667,
+      "mode": "RGB",
+      "bytes": 473625,
+      "sha256": "e4ad31e501e3666206e20eac89daf5b29768f69d18f7d78009225ca1cf4645f1"
+    },
+    {
+      "name": "flowers_cls002.png",
+      "manifest_path": "benchmark/real/flowers_cls002.png",
+      "source_group": "Oxford Flowers 102",
+      "width": 667,
+      "height": 500,
+      "mode": "RGB",
+      "bytes": 559147,
+      "sha256": "728cb0035a583690d5935575e6fd5902a3c465f097b733ea171cd32b43eee199"
+    },
+    {
+      "name": "flowers_cls003.png",
+      "manifest_path": "benchmark/real/flowers_cls003.png",
+      "source_group": "Oxford Flowers 102",
+      "width": 599,
+      "height": 500,
+      "mode": "RGB",
+      "bytes": 430977,
+      "sha256": "80a1b57c5ed224adccb11aab74d60ab389fada235e022ed393932553d50064b1"
+    },
+    {
+      "name": "flowers_cls004.png",
+      "manifest_path": "benchmark/real/flowers_cls004.png",
+      "source_group": "Oxford Flowers 102",
+      "width": 703,
+      "height": 500,
+      "mode": "RGB",
+      "bytes": 449108,
+      "sha256": "a26a3991d32be05da48db69220a6daead9bf869123d41ff94fd486476b5a7811"
+    },
+    {
+      "name": "flowers_cls005.png",
+      "manifest_path": "benchmark/real/flowers_cls005.png",
+      "source_group": "Oxford Flowers 102",
+      "width": 500,
+      "height": 722,
+      "mode": "RGB",
+      "bytes": 482224,
+      "sha256": "d1d7153c84b99e0cc4c595b62f9ba74d482590ec315aab66008a70872b831b6f"
+    },
+    {
+      "name": "flowers_cls006.png",
+      "manifest_path": "benchmark/real/flowers_cls006.png",
+      "source_group": "Oxford Flowers 102",
+      "width": 500,
+      "height": 510,
+      "mode": "RGB",
+      "bytes": 418337,
+      "sha256": "b2968a38a49306cad307a3729d545abdac0042d75827e7fa9ea41085cac5217d"
+    },
+    {
+      "name": "flowers_cls007.png",
+      "manifest_path": "benchmark/real/flowers_cls007.png",
+      "source_group": "Oxford Flowers 102",
+      "width": 500,
+      "height": 766,
+      "mode": "RGB",
+      "bytes": 525393,
+      "sha256": "1174519784ccf2a7339209e203127ce0462372467c476c7e83ac2e7b91894b45"
+    },
+    {
+      "name": "flowers_cls008.png",
+      "manifest_path": "benchmark/real/flowers_cls008.png",
+      "source_group": "Oxford Flowers 102",
+      "width": 500,
+      "height": 590,
+      "mode": "RGB",
+      "bytes": 454119,
+      "sha256": "374924e0dbcf44bde270f73c1adf3823586d697ac29e40560b4cee9e90e16fc6"
+    },
+    {
+      "name": "flowers_cls009.png",
+      "manifest_path": "benchmark/real/flowers_cls009.png",
+      "source_group": "Oxford Flowers 102",
+      "width": 667,
+      "height": 500,
+      "mode": "RGB",
+      "bytes": 434204,
+      "sha256": "b1bef67d54e52e996850f39132f87395cfd20b5e9f07d81eb77fdf6972c6d38f"
+    },
+    {
+      "name": "flowers_cls010.png",
+      "manifest_path": "benchmark/real/flowers_cls010.png",
+      "source_group": "Oxford Flowers 102",
+      "width": 751,
+      "height": 500,
+      "mode": "RGB",
+      "bytes": 235739,
+      "sha256": "89699f91eb014473c431c05f01fff707025343fb20739fd11da77acdb5fef04c"
+    },
+    {
+      "name": "flowers_cls011.png",
+      "manifest_path": "benchmark/real/flowers_cls011.png",
+      "source_group": "Oxford Flowers 102",
+      "width": 667,
+      "height": 500,
+      "mode": "RGB",
+      "bytes": 274770,
+      "sha256": "9a826251ceb2cc66c37d6643c6f51038302eef8d8998cbe8305042aa1be0ab71"
+    },
+    {
+      "name": "leo.jpg",
+      "manifest_path": "benchmark/real/leo.jpg",
+      "source_group": "demo photograph",
+      "width": 978,
+      "height": 678,
+      "mode": "RGB",
+      "bytes": 227202,
+      "sha256": "6f197990f24b1c29d0880203936bbea2bbeee82bda33177e03a9b0bc3f749640"
+    },
+    {
+      "name": "pets_cls00.png",
+      "manifest_path": "benchmark/real/pets_cls00.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 500,
+      "height": 359,
+      "mode": "RGB",
+      "bytes": 278720,
+      "sha256": "517f680fc2e92e56f08227d28901a190ced152eca586de2bd2cf183836edba59"
+    },
+    {
+      "name": "pets_cls01.png",
+      "manifest_path": "benchmark/real/pets_cls01.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 500,
+      "height": 375,
+      "mode": "RGB",
+      "bytes": 314650,
+      "sha256": "450bdaf9e9503b5eb98dbc0312545a5a28cde2bd2c292ecd4823eafa6813195c"
+    },
+    {
+      "name": "pets_cls02.png",
+      "manifest_path": "benchmark/real/pets_cls02.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 239,
+      "height": 300,
+      "mode": "RGB",
+      "bytes": 131843,
+      "sha256": "3a501e04a45a27907de008ac3ce681735d9793fef71cbbac7b862c1ab8bfbe1b"
+    },
+    {
+      "name": "pets_cls03.png",
+      "manifest_path": "benchmark/real/pets_cls03.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 500,
+      "height": 375,
+      "mode": "RGB",
+      "bytes": 278085,
+      "sha256": "93ad6fe316c2934e8d79597b233045712d53438951cbfe7cb7a78a1cd1982d85"
+    },
+    {
+      "name": "pets_cls04.png",
+      "manifest_path": "benchmark/real/pets_cls04.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 333,
+      "height": 500,
+      "mode": "RGB",
+      "bytes": 314683,
+      "sha256": "22432d450837eb027a0ce6fbb5f515699d413c5478f451adaefb54862f95f724"
+    },
+    {
+      "name": "pets_cls05.png",
+      "manifest_path": "benchmark/real/pets_cls05.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 320,
+      "height": 240,
+      "mode": "RGB",
+      "bytes": 89924,
+      "sha256": "61f44de0db784d9c307a290bb47bc0ac83b103f98627ad807715cd6a59c93450"
+    },
+    {
+      "name": "pets_cls06.png",
+      "manifest_path": "benchmark/real/pets_cls06.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 500,
+      "height": 393,
+      "mode": "RGB",
+      "bytes": 370472,
+      "sha256": "3d0a15f2e5a056cff0ff1676eecc96f2f88b509446a2ccb5782336a855856de8"
+    },
+    {
+      "name": "pets_cls07.png",
+      "manifest_path": "benchmark/real/pets_cls07.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 167,
+      "height": 250,
+      "mode": "RGB",
+      "bytes": 45969,
+      "sha256": "cc1454015bcf2bbc85b0dc1011a93a25ab8d0eb3c08b711c20e31103cc9d050d"
+    },
+    {
+      "name": "pets_cls08.png",
+      "manifest_path": "benchmark/real/pets_cls08.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 500,
+      "height": 333,
+      "mode": "RGB",
+      "bytes": 270312,
+      "sha256": "db7f37fbd403031c393148f15d04fecab96192f160b4902ae67dbc0c1315ae41"
+    },
+    {
+      "name": "pets_cls09.png",
+      "manifest_path": "benchmark/real/pets_cls09.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 500,
+      "height": 333,
+      "mode": "RGB",
+      "bytes": 300798,
+      "sha256": "cd3bb53e216352c2976a1f84523e48bfdf72d972480e19646d40c006e68790c5"
+    },
+    {
+      "name": "pets_cls10.png",
+      "manifest_path": "benchmark/real/pets_cls10.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 300,
+      "height": 225,
+      "mode": "RGB",
+      "bytes": 87285,
+      "sha256": "ae242f61f5e350c3fc97b73bf53d748204cd672ede26698c98bf427e06a4538d"
+    },
+    {
+      "name": "pets_cls11.png",
+      "manifest_path": "benchmark/real/pets_cls11.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 1999,
+      "height": 1499,
+      "mode": "RGB",
+      "bytes": 4066873,
+      "sha256": "46a90d2d336f97a781fb320670d3ed3e66479ddb607ada4423719c0ee4f9dd09"
+    },
+    {
+      "name": "pets_cls12.png",
+      "manifest_path": "benchmark/real/pets_cls12.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 358,
+      "height": 500,
+      "mode": "RGB",
+      "bytes": 189964,
+      "sha256": "89d04de16c47a6f1fd83c1abfd77e4660e080ccb04e260702f76c7bcb9254ebe"
+    },
+    {
+      "name": "pets_cls13.png",
+      "manifest_path": "benchmark/real/pets_cls13.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 500,
+      "height": 355,
+      "mode": "RGB",
+      "bytes": 408701,
+      "sha256": "621c7a1fdc6914d83fbf9ddc920f7150ae4e1bfc8cacb799f43163253bb1d111"
+    },
+    {
+      "name": "pets_cls14.png",
+      "manifest_path": "benchmark/real/pets_cls14.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 333,
+      "height": 500,
+      "mode": "RGB",
+      "bytes": 259926,
+      "sha256": "0e15373245b79698257ed7ac22fd5c27c4f41a9f2bb252c113352da23811a443"
+    },
+    {
+      "name": "pets_cls15.png",
+      "manifest_path": "benchmark/real/pets_cls15.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 500,
+      "height": 333,
+      "mode": "RGB",
+      "bytes": 238750,
+      "sha256": "4abaa8c9c94c274cfaca004d06fe50ac6670cde9e9ee69c4e5d967dcd6f0192e"
+    },
+    {
+      "name": "pets_cls16.png",
+      "manifest_path": "benchmark/real/pets_cls16.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 500,
+      "height": 332,
+      "mode": "RGB",
+      "bytes": 213527,
+      "sha256": "67fb821547064cdec93731b4206a38ed6ef2a25dc7397214b8eb0e662dc4006d"
+    },
+    {
+      "name": "pets_cls17.png",
+      "manifest_path": "benchmark/real/pets_cls17.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 500,
+      "height": 371,
+      "mode": "RGB",
+      "bytes": 234541,
+      "sha256": "da848e61204422dbd8bb86790653f9de3d3158f786953c228461b5217c854745"
+    },
+    {
+      "name": "pets_cls18.png",
+      "manifest_path": "benchmark/real/pets_cls18.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 333,
+      "height": 500,
+      "mode": "RGB",
+      "bytes": 267014,
+      "sha256": "c20c21e8d1740dbeaf1b21af5b63a3654a2c27a6f7884e8339004219cd496995"
+    },
+    {
+      "name": "pets_cls19.png",
+      "manifest_path": "benchmark/real/pets_cls19.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 375,
+      "height": 500,
+      "mode": "RGB",
+      "bytes": 363611,
+      "sha256": "c80954576a6916c3273a67c4f9378cea0d7f45d6791e48f63bc26e4ccaf26406"
+    },
+    {
+      "name": "pets_cls27.png",
+      "manifest_path": "benchmark/real/pets_cls27.png",
+      "source_group": "Oxford-IIIT Pets",
+      "width": 334,
+      "height": 500,
+      "mode": "RGB",
+      "bytes": 284808,
+      "sha256": "a43fc9603594fcf469946d0bf78626efc9fa433b92dca8d7c69599d98eadbcf5"
+    }
+  ],
+  "synthetic_images": [
+    {
+      "name": "synth_portrait",
+      "source_group": "synthetic",
+      "generator": "examples/multi_image_eval.py"
+    },
+    {
+      "name": "synth_landscape",
+      "source_group": "synthetic",
+      "generator": "examples/multi_image_eval.py"
+    },
+    {
+      "name": "synth_document",
+      "source_group": "synthetic",
+      "generator": "examples/multi_image_eval.py"
+    },
+    {
+      "name": "synth_geometric",
+      "source_group": "synthetic",
+      "generator": "examples/multi_image_eval.py"
+    },
+    {
+      "name": "synth_noise",
+      "source_group": "synthetic",
+      "generator": "examples/multi_image_eval.py"
+    }
+  ]
+}

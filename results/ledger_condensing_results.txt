@@ -1,0 +1,12 @@
+PBC Ledger Condensing Demo Results
+
+  Metric                                             Naive  Condensed
+  -----------------------------------------------------------------
+  Blocks written per tile                              111         11
+  Block budget used (%)                              58.1%       5.8%
+  Remaining block budget                                80        180
+  Tiles GREEN                                          40/40        40/40
+
+  Condensing ratio: 111/11 = 10.1x
+  Naive exhausts capacity after ~1.7 sessions.
+  Condensed exhausts capacity after ~17.4 sessions.

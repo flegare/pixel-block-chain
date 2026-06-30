@@ -1,0 +1,13 @@
+PBC Audio (MP3) Robustness Test Results
+Signal: 5s, 44100 Hz stereo 16-bit PCM
+
+ Bitrate | bit0 BER | bit1 BER | bit2 BER | bit3 BER | mean_err | Assessment
+-------------------------------------------------------------------------------------
+  320 kbps |    49.8% |    50.1% |    50.1% |    50.0% |  2478.3  | All bits fail (best H=23.9 at bit0)
+  256 kbps |    50.0% |    50.1% |    49.9% |    49.9% |  3035.0  | All bits fail (best H=24.0 at bit2)
+  192 kbps |    50.0% |    49.9% |    50.1% |    50.0% |  3742.6  | All bits fail (best H=23.9 at bit1)
+  128 kbps |    49.9% |    50.1% |    49.9% |    50.0% |  5169.7  | All bits fail (best H=24.0 at bit2)
+   96 kbps |    50.1% |    50.0% |    50.0% |    50.0% |  6119.8  | All bits fail (best H=24.0 at bit1)
+   64 kbps |    50.0% |    50.0% |    49.9% |    50.1% |  6856.0  | All bits fail (best H=24.0 at bit2)
+
+JPEG Q=100 reference: bit0=42%  bit1=19%  bit2=9.5%  bit3=4.6%
