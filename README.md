@@ -5,6 +5,19 @@
 Reference implementation for the paper by François Légaré, Sion Israel Sion, and
 Alain April (École de technologie supérieure), IEEE ICIP 2026.
 
+> Copyright 2026 IEEE. Published in 2026 IEEE International Conference on Image
+> Processing (ICIP), scheduled for 13-17 September 2026 in Tampere, Finland.
+> Personal use of this material is permitted. Permission from IEEE must be
+> obtained for all other uses, in any current or future media, including
+> reprinting/republishing this material for advertising or promotional purposes,
+> creating new collective works, for resale or redistribution to servers or
+> lists, or reuse of any copyrighted component of this work in other works.
+
+The notice above is required by the ICIP author kit because this repository
+posts a copy of the accepted paper (`paper/PBC_ICIP2026_CameraReady.pdf`). It
+covers the paper only; the MIT licence below covers the implementation. See
+[`paper/IEEE-COPYRIGHT-NOTICE.md`](paper/IEEE-COPYRIGHT-NOTICE.md).
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 
