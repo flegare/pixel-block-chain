@@ -152,7 +152,7 @@ encoder-decoder networks to embed provenance and achieve pixel-level
 localization with some robustness to lossy compression. However, their
 inference pipelines require tens of millions of parameters and GPU-class
 hardware, precluding deployment in camera firmware, air-gapped archival
-workflows, or lightweight publisher scripts. On the image quality axis, LSB embedding at $k{=}1$ yields $51.2$\,dB. The closest published comparison point is the joint copyright-plus-localization setting of~\cite[Table~3]{omniguard}, which matches our own scope since PBC likewise carries localization: there EditGuard reports $37.53$\,dB and OmniGuard $41.78$\,dB. We read this gap as a consequence of divergent design points rather than a like-for-like advantage: neural schemes deliberately trade fidelity for survival across the lossy channels that PBC does not target.
+workflows, or lightweight publisher scripts. On the image quality axis, LSB embedding at $k{=}1$ yields $51.2$\,dB. For context, \cite{omniguard} evaluates both systems on its own benchmark and reports, in Table~3, a copyright-only setting ($42.15$\,dB for EditGuard, $42.33$\,dB for OmniGuard) and a joint copyright-plus-localization setting ($37.53$ and $41.78$\,dB respectively); the latter is the closer analogue to PBC, which also carries localization. These are third-party measurements taken under a different dataset and payload, so they are not directly comparable to ours. We read the gap as a consequence of divergent design points rather than a like-for-like advantage: neural schemes deliberately trade fidelity for survival across the lossy channels that PBC does not target.
 
 \subsection{Manifest-Based Provenance}
 
