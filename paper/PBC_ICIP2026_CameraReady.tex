@@ -152,7 +152,7 @@ encoder-decoder networks to embed provenance and achieve pixel-level
 localization with some robustness to lossy compression. However, their
 inference pipelines require tens of millions of parameters and GPU-class
 hardware, precluding deployment in camera firmware, air-gapped archival
-workflows, or lightweight publisher scripts. On the image quality axis, LSB embedding at $k{=}1$ yields $51.2$\,dB, above the values typically reported for EditGuard (${\sim}40$\,dB) and OmniGuard (${\sim}38$\,dB). We read this gap as a consequence of divergent design points rather than a like-for-like advantage: neural schemes deliberately trade fidelity for survival across the lossy channels that PBC does not target.
+workflows, or lightweight publisher scripts. On the image quality axis, LSB embedding at $k{=}1$ yields $51.2$\,dB. The closest published comparison point is the joint copyright-plus-localization setting of~\cite[Table~3]{omniguard}, which matches our own scope since PBC likewise carries localization: there EditGuard reports $37.53$\,dB and OmniGuard $41.78$\,dB. We read this gap as a consequence of divergent design points rather than a like-for-like advantage: neural schemes deliberately trade fidelity for survival across the lossy channels that PBC does not target.
 
 \subsection{Manifest-Based Provenance}
 
@@ -694,7 +694,7 @@ Generative AI tools were used under author supervision: Claude Opus 4 (Anthropic
   Available: \url{https://spec.c2pa.org/specifications/specifications/2.4/}
 
 \bibitem{he2008blockchain}
-  Z.~He, W.~Zhang, and H.-T.~Tai,
+  H.-J.~He, J.-S.~Zhang, and H.-M.~Tai,
   ``Block-Chain Based Fragile Watermarking Scheme with Superior
   Localization,''
   in \emph{Proc. 10th Int'l Workshop on Information Hiding},
@@ -708,10 +708,10 @@ Generative AI tools were used under author supervision: Claude Opus 4 (Anthropic
   vol.~1117, Springer, 2020.
 
 \bibitem{editguard}
-  Z.~Zhang, M.~Wu, Y.~Zheng, and X.~Sun,
+  X.~Zhang, R.~Li, J.~Yu, Y.~Xu, W.~Li, and J.~Zhang,
   ``EditGuard: Versatile Image Watermarking for Tamper Localization
   and Copyright Protection,''
-  in \emph{Proc. IEEE/CVF CVPR}, pp.~11--20, 2024.
+  in \emph{Proc. IEEE/CVF CVPR}, pp.~11964--11974, 2024.
 
 \bibitem{omniguard}
   X.~Zhang, Z.~Tang, Z.~Xu, R.~Li, Y.~Xu, B.~Chen, F.~Gao,
