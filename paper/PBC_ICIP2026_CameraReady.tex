@@ -50,10 +50,17 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
 
 \maketitle
-% --- Camera-ready copyright notice: replace ISBN with the exact ICIP 2026 string ---
-
-\IEEEpubid{\makebox[\columnwidth]{XXX-X-XXXX-XXXX-X/26/\$31.00~\copyright2026~IEEE\hfill}\hspace{\columnsep}\makebox[\columnwidth]{}}
-
+% --- Pas de ligne de copyright ISBN : ce n'est pas une omission, c'est la regle d'ICIP.
+% Le \IEEEpubid{XXX-X-XXXX-XXXX-X/26/...} qui se trouvait ici venait du gabarit generique
+% IEEEtran, pas d'ICIP. Mesure (2026-09-09) :
+%   - Le kit LaTeX officiel ICIP 2026 (spconf.sty + Template.tex, civit.fi/.../LaTeX_template.zip)
+%     definit la macro \copyrightnotice mais ne l'appelle JAMAIS : 0 occurrence dans Template.tex,
+%     et spconf.sty:217 fait \let\@copyrightnotice\relax — donc vide par defaut.
+%   - Le paper kit ICIP (2026 et 2025) n'exige une notice de copyright que si l'auteur publie
+%     lui-meme une copie sur Internet, et cette notice-la est du texte, sans ISBN.
+%   - L'ISBN appartient au volume des actes, pas au papier : ICIP 2025 avait 979-8-3315-2380-0
+%     (conference) et 979-8-3315-7799-5 (workshops). Il n'est jamais transmis aux auteurs.
+% Conclusion : aucune chaine a attendre. La ligne est retiree plutot que remplie.
 % ------------------------------------------------------------
 \begin{abstract}
 Images shared through social media, messaging platforms, and editorial workflows routinely lose their external provenance manifests through transcoding, cropping, and metadata stripping. Manifest-based systems such as C2PA address provenance at the file-container level, and recent durable-credential mechanisms add rediscovery paths, but neither provides a self-contained, tile-local integrity ledger when only pixels remain. This paper presents Pixel Block Chain (PBC), a lightweight, learning-free watermarking scheme that embeds a grid of independent hash-linked chains directly into image least-significant bits. PBC targets lossless and near-lossless distribution channels (archival masters, editorial handoffs, and wire-service exchanges) rather than lossy social-media re-encoding, and it provides tile-local integrity rather than cryptographic identity. The scheme enables spatial tamper localization and partial Edit Ledger recovery after redistribution within this regime. Each image tile carries its own chain, and a break in one tile does not cascade to adjacent regions, a property we prove formally. A compliant editor can append records only to modified tiles, preserving an auditable, region-level Edit Ledger.
@@ -69,7 +76,8 @@ image forensics, tamper localization, fragile watermarking, edit ledger, stegano
 \section{Introduction}
 \label{sec:intro}
 
-\IEEEpubidadjcol
+% \IEEEpubidadjcol retire avec le \IEEEpubid : sans boite de pubid, il raccourcirait
+% une colonne pour rien.
 The integrity of digital images is increasingly undermined not by
 sophisticated forgeries alone, but by the ordinary mechanics of
 distribution. A photograph posted to a social platform is transcoded.
