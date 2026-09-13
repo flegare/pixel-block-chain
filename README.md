@@ -259,20 +259,31 @@ JPEG destroys LSB data through YCbCr color-space rounding, regardless of quality
 
 ## Performance
 
-Single-threaded Python on AMD Ryzen consumer hardware:
+Measured with `benchmarks/bench_pbc.py` (synthetic RGB images, median of 5 warm
+runs) on a MacBook Pro 11,5: Intel Core i7-4870HQ, **one CPU core**, no GPU,
+Python 3.13, NumPy 2.4.
 
-| Resolution | Tiles | Encode | Verify | PSNR |
-|---|---|---|---|---|
-| 256² | 4 | 91 ms | 87 ms | 51.2 dB |
-| 1024² | 64 | 2.0 s | 1.9 s | 51.2 dB |
-| 12 MP (4032×3024) | 768 | 19.3 s | 19.1 s | 51.2 dB |
-| 24 MP (6000×4000) | 1457 | 34.2 s | 34.9 s | 51.2 dB |
-| 61 MP (9504×6336) | 3700 | 100 s | 99 s | 51.2 dB |
+| Resolution | Tiles | Encode | Verify |
+|---|---|---|---|
+| 512×512 (0.26 MP) | 16 | 12 ms | 24 ms |
+| 1024×768 (0.79 MP) | 48 | 38 ms | 63 ms |
+| 2048×1536 (3.1 MP) | 192 | 153 ms | 244 ms |
+| 12 MP (4032×3024) | 768 | 0.69 s | 1.39 s |
+| 24 MP (6000×4000) | 1457 | 1.11 s | 2.13 s |
 
-Throughput scales linearly (O(n)) with pixel count at ~0.65 MP/s.
-PSNR is constant at 51.2 dB regardless of image size.
+Throughput is roughly linear in pixel count: about 18–22 MP/s to encode and
+9–13 MP/s to verify on that single core. Timings are machine-specific; re-run
+the benchmark on your own hardware. PSNR is constant at 51.2 dB regardless of
+image size.
+
+The encoder and verifier are vectorized with NumPy. They are verified bit-exact
+against the per-block pure-Python reference in `pbc/_reference.py`
+(`tests/test_reference_equivalence.py`, `tests/test_golden_bitexact.py`).
+The paper's experiments (PSNR, detection, crop survival) were run on a different
+machine, an Intel Core i9-12900KF desktop.
 
 ```bash
+python benchmarks/bench_pbc.py
 python examples/benchmark.py
 python examples/highres_benchmark.py
 ```
@@ -355,7 +366,10 @@ pixel-block-chain/
 │   ├── scatter.py          PBC-Forest scatter placement
 │   ├── video.py            Video inter-frame chain
 │   ├── visualizer.py       Tile integrity map visualization
-│   └── cli.py              Command-line interface
+│   ├── cli.py              Command-line interface
+│   └── _reference.py       Per-block pure-Python reference (bit-exact oracle)
+├── benchmarks/
+│   └── bench_pbc.py        encode()/verify() timings (median ms, MP/s)
 ├── examples/               Demonstration and experiment scripts
 │   ├── demo.py             Core encode/verify/tamper scenarios
 │   ├── edit_ledger_demo.py Multi-author Edit Ledger experiment
