@@ -1,0 +1,18 @@
+# Optimized code: vectorized NumPy encoder/decoder (commit 1573b34), bit-exact with
+# the pure-Python reference (tests/test_golden_bitexact.py).
+# Machine: MacBook Pro 11,5, Intel Core i7-4870HQ, single CPU core, no GPU,
+# Python 3.13.7, NumPy 2.4.3. Generated with: python examples/highres_benchmark.py
+# Not directly comparable with highres_benchmark_results.txt, which was produced by
+# the original pure-Python code on a different machine.
+
+PBC High-Resolution Benchmark Results
+Tile size: 128  Runs: 1
+
+    MP  WxH                Enc ms   Ver ms   Enc MP/s   Ver MP/s  PSNR dB  GREEN%
+------------------------------------------------------------------------
+   6.0  3000x2000             287      596      20.92      10.07     51.2   100.0
+  12.2  4032x3024             606     1052      20.11      11.59     51.2   100.0
+  24.0  6000x4000            1087     2139      22.08      11.22     51.2   100.0
+  36.2  7360x4912            1823     3547      19.83      10.19     51.2   100.0
+  44.8  8192x5464            2017     5027      22.19       8.90     51.2   100.0
+  60.2  9504x6336            3025     6053      19.91       9.95     51.2   100.0
