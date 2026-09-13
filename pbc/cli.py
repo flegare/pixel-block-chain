@@ -89,7 +89,6 @@ def cmd_verify(args):
         elif args.mode == 'heatmap':
             report = generate_heatmap(result)
         elif args.mode == 'tilemap':
-            import numpy as np
             report = Image.fromarray(render_tile_map(result, cell_size=40))
         else:
             report = generate_report_image(img, result)
