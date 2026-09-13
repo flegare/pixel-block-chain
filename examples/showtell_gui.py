@@ -244,9 +244,12 @@ class Demo(tk.Tk):
                           (self._discard_demo(), self._set_pen(not self.pen_compliant)))
         self.pen_btn.pack(before=self.left_lbl, pady=(2, 0))
         self.right_lbl.bind("<Button-1>", self._ledger_click)
-        # any click / key during the auto demo hands control to the visitor
+        # any click / key during the auto demo pauses it and hands control to the visitor;
+        # ← / → instead step to the previous / next slide (more specific bindings win)
         self.bind_all("<Button-1>", self._demo_interrupt, add="+")
         self.bind_all("<Key>", self._demo_interrupt, add="+")
+        self.bind_all("<Left>", lambda e: self._step_slide(-1))
+        self.bind_all("<Right>", lambda e: self._step_slide(+1))
 
         self.verdict = tk.Label(self, text="", font=huge, fg="white", bg=NAVY)
         self.verdict.pack(pady=(0, 14))
@@ -360,7 +363,7 @@ class Demo(tk.Tk):
                 d.text((x_bar, y), a, fill=ICE, font=f12)
                 d.text((x_bar + 170, y), b, fill=GRAY, font=f12)
                 y += 20
-            for line in ("Measured tonight on this laptop (MacBookPro11,5, i7-4870HQ, CPU only), 978×678 photo.",
+            for line in ("Measured on this laptop (i7-4870HQ, CPU only), 978×678 photo, encode()/verify() calls only.",
                          "PBC: NumPy, 1 core. TrustMark Q, PyTorch 2.2, 1 core (4 cores: 294 ms / 116 ms)."):
                 d.text((x_lab, y + 6), line, fill=GRAY, font=f10)
                 y += 14
@@ -639,7 +642,7 @@ class Demo(tk.Tk):
             arr = encode_region(np.array(self.edit_img, dtype=np.uint8),
                                 np.array(self.mask_img) > 0, EDITOR_ID, OpCode.EDIT_RETOUCH)
             self.edit_img = Image.fromarray(arr)
-        self.edit_img.save(WORK_PNG)
+        self.edit_img.save(WORK_PNG, compress_level=1)    # lossless, faster
         self.work_mtime = os.path.getmtime(WORK_PNG)
         self.verify_path, self.dirty = WORK_PNG, False
 
@@ -683,6 +686,7 @@ class Demo(tk.Tk):
             return messagebox.showinfo("PBC", "Load a photo first.")
         if self.busy:
             return
+        self.busy_t0 = time.perf_counter()   # click: the card reports click → result on screen
         self._hide_grid()
         self.status.configure(text="Encoding PBC chains into the pixels…")
         original = self.original
@@ -691,13 +695,15 @@ class Demo(tk.Tk):
             wall0, cpu0 = time.perf_counter(), time.thread_time()
             protected = encode(original, originator=ORIGINATOR)
             enc_s, enc_cpu = time.perf_counter() - wall0, time.thread_time() - cpu0
-            Image.fromarray(protected).save(WORK_PNG)
+            t = time.perf_counter()
+            Image.fromarray(protected).save(WORK_PNG, compress_level=1)   # lossless, faster
+            save_s, t = time.perf_counter() - t, time.perf_counter()
             check = verify(np.array(Image.open(WORK_PNG).convert("RGB"), dtype=np.uint8))
-            return protected, enc_s, enc_cpu, check
+            return protected, enc_s, enc_cpu, check, save_s, time.perf_counter() - t
         self._run_busy("protect", "Writing hash-linked chains into every tile",
                        work, self._protect_done)
 
-    def _protect_done(self, protected, enc_s, enc_cpu, check):
+    def _protect_done(self, protected, enc_s, enc_cpu, check, save_s, check_s):
         self.protected, self.last_encode_s = protected, enc_s
         mse = float(np.mean((self.original.astype(float) -
                              self.protected.astype(float)) ** 2))
@@ -725,17 +731,23 @@ class Demo(tk.Tk):
         model, cpu = self.machine
         ram = peak_ram_mb()
         ram_txt = f"\npeak RAM {ram:.0f} MB (whole app)" if ram else ""
+        self._show_grid(res)             # draw the result first so the timing includes it
+        self.update_idletasks()
+        # what the audience watched: click → result on screen = worker steps + UI ("display")
+        watched_s = time.perf_counter() - self.busy_t0
+        display_ms = max(0.0, watched_s - enc_s - save_s - check_s) * 1000
         self._pane_text(self.right_lbl,
-                        f"⚡  Protected in {self.last_encode_s * 1000:.0f} ms\n\n"
+                        f"⚡  Protected in {watched_s * 1000:.0f} ms (the step you just watched)\n"
+                        f"embed {enc_s * 1000:.0f} · save PNG {save_s * 1000:.0f} · re-read + check "
+                        f"{check_s * 1000:.0f} · display {display_ms:.0f} ms\n\n"
                         f"{w}×{h} px · {w * h / 1e6:.2f} MP · PSNR {psnr:.1f} dB\n"
                         f"{res.cols}×{res.rows} = {res.cols * res.rows} tiles · {blocks:,} blocks\n"
-                        f"CPU {enc_cpu * 1000:.0f} ms, single-threaded · no GPU{ram_txt}\n"
+                        f"embed CPU {enc_cpu * 1000:.0f} ms, single-threaded · no GPU{ram_txt}\n"
                         f"{model} · {cpu}\n\n"
                         "Neural watermarks run trained networks on GPUs\n"
                         "(EditGuard: 5.45 M parameters, RTX 3090 Ti,\n"
                         "as reported by its authors).\n"
                         "PBC is learning-free: NumPy + Pillow only.")
-        self._show_grid(res)
 
     def edit(self):
         if self.edit_img is None:
@@ -762,6 +774,7 @@ class Demo(tk.Tk):
     def do_verify(self):
         if self.busy:
             return
+        self.busy_t0 = time.perf_counter()   # click: the verdict reports click → result on screen
         if self.dirty:
             self._save_edits()           # save the drawing; verify reads it from disk
         if self.verify_path is None or not os.path.exists(self.verify_path):
@@ -772,8 +785,10 @@ class Demo(tk.Tk):
 
         def work():                      # worker thread: reads the file back from disk
             img = np.array(Image.open(path).convert("RGB"), dtype=np.uint8)
+            t = time.perf_counter()
             result = verify(img)
-            return result, generate_overlay(img, result, opacity=0.45)
+            check_s = time.perf_counter() - t
+            return result, generate_overlay(img, result, opacity=0.45), check_s
         self._run_busy("verify", "Re-reading every chain from the saved file",
                        work, self._verify_done)
 
@@ -798,8 +813,6 @@ class Demo(tk.Tk):
             x, y = (j % cols) * tw / s, (j // cols) * th / s
             return [x, y, x + tw / s - 1, y + th / s - 1]
         self.busy, t0 = True, time.perf_counter()
-        switch = sys.getswitchinterval()
-        sys.setswitchinterval(0.001)     # the encoder holds the GIL: hand it over more often
         worker.start()
 
         def frame():
@@ -816,18 +829,17 @@ class Demo(tk.Tk):
                     lbl.image.paste(Image.alpha_composite(base, ov).convert("RGB"))
                 spin = "◐◓◑◒"[int(elapsed * 8) % 4]
                 self.status.configure(text=f"{spin}  {label}…  {elapsed:.1f} s")
-                self.after(40, frame)
+                self.after(20, frame)
                 return
-            sys.setswitchinterval(switch)
             lbl.image.paste(lbl.thumb)
             self.busy = False
-            self.est_s[key] = elapsed    # next sweep matches this machine's pace
+            self.est_s[key] = self.last_busy_s = elapsed   # next sweep matches this pace
             if "err" in box:
                 return messagebox.showerror("PBC", f"{key} failed: {box['err']}")
             done(*box["out"])
         frame()
 
-    def _verify_done(self, result, overlay):
+    def _verify_done(self, result, overlay, check_s):
         self._show(self.right_lbl, overlay)
         self.verify_result, self.verdict_thumb = result, self.right_lbl.thumb.copy()
         # the image's original encoder = most common originator among intact tiles
@@ -865,6 +877,11 @@ class Demo(tk.Tk):
         self.ledger_pick = (pick.tx, pick.ty) if pick else None
         if pick and not self.demo_on:    # the demo shows it on the Verdict slide instead
             self._show_ledger(pick.tx, pick.ty)
+        # timing = the step the audience watched (click → everything on screen), plus verify()
+        self.update_idletasks()
+        watched_s = time.perf_counter() - self.busy_t0
+        self.verdict.configure(text=f"{txt}  ·  {watched_s * 1000:.0f} ms "
+                                    f"(verify {check_s * 1000:.0f} ms)")
 
     def reset(self):
         if os.path.exists(DEFAULT_IMAGE):
@@ -946,6 +963,13 @@ class Demo(tk.Tk):
                           "Replaying the earlier steps for real, so this slide shows "
                           "genuine results…")
         self.start_demo()                # resumes the fresh generator right away
+
+    def _step_slide(self, delta):
+        """← / →: jump to the previous / next auto-demo slide (wrapping around)."""
+        if not self.demo_on and self.demo_gen is None:
+            return
+        cur = max(self.demo_section, self.demo_ff)
+        self.jump_demo((cur + delta) % len(DEMO_SECTIONS))
 
     def _draw_bullets(self):
         """Slide bullets (shown while a demo runs or is paused): the active one is a
