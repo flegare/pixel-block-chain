@@ -112,6 +112,12 @@ class OpCode(IntEnum):
 # Block Data Structure
 # =============================================================================
 
+# The 32-byte block layout written by PBCBlock.to_bits(), as one struct:
+# sync(6) version(1) originator(4) opcode(2) index(2) tile_x(1) tile_y(1)
+# timestamp(3) extension(4) crc16(2) chain_hash(6)
+_BLOCK_STRUCT = struct.Struct('>6sBIHHBB3sIH6s')
+
+
 @dataclass
 class PBCBlock:
     """A single PBC block (256 bits / 32 bytes)."""
@@ -157,22 +163,13 @@ class PBCBlock:
 
     @classmethod
     def from_bits(cls, data: bytes) -> 'PBCBlock':
-        """Deserialize a 32-byte block."""
+        """Deserialize a 32-byte block (one struct call over the to_bits() layout)."""
         if len(data) < 32:
             raise ValueError(f"Need 32 bytes, got {len(data)}")
-        b = cls()
-        b.sync            = bytes(data[0:6])
-        b.version         = data[6]
-        b.originator_id   = struct.unpack('>I', data[7:11])[0]
-        b.opcode          = struct.unpack('>H', data[11:13])[0]
-        b.block_index     = struct.unpack('>H', data[13:15])[0]
-        b.tile_x          = data[15]
-        b.tile_y          = data[16]
-        b.timestamp_delta = struct.unpack('>I', b'\x00' + bytes(data[17:20]))[0]
-        b.extension       = struct.unpack('>I', data[20:24])[0]
-        b.crc16           = struct.unpack('>H', data[24:26])[0]
-        b.chain_hash      = bytes(data[26:32])
-        return b
+        (sync, version, originator_id, opcode, block_index, tile_x, tile_y,
+         timestamp, extension, crc16, chain_hash) = _BLOCK_STRUCT.unpack_from(data)
+        return cls(sync, version, originator_id, opcode, block_index, tile_x, tile_y,
+                   int.from_bytes(timestamp, 'big'), extension, crc16, chain_hash)
 
     def compute_crc(self) -> int:
         """Compute CRC-16/CCITT over all fields before CRC (first 24 bytes)."""
@@ -189,17 +186,31 @@ class PBCBlock:
 # CRC-16/CCITT
 # =============================================================================
 
-def _crc16_ccitt(data: bytes, init: int = 0xFFFF) -> int:
-    """CRC-16/CCITT (polynomial 0x1021)."""
-    crc = init
-    for byte in data:
-        crc ^= byte << 8
+def _crc16_table() -> list:
+    """256-entry table for CRC-16/CCITT (polynomial 0x1021, MSB first)."""
+    table = []
+    for i in range(256):
+        crc = i << 8
         for _ in range(8):
-            if crc & 0x8000:
-                crc = (crc << 1) ^ 0x1021
-            else:
-                crc = crc << 1
+            crc = ((crc << 1) ^ 0x1021) if crc & 0x8000 else (crc << 1)
             crc &= 0xFFFF
+        table.append(crc)
+    return table
+
+
+_CRC16_TABLE = _crc16_table()
+
+
+def _crc16_ccitt(data: bytes, init: int = 0xFFFF) -> int:
+    """CRC-16/CCITT (polynomial 0x1021), table-driven.
+
+    Bit-exact with the bitwise reference in pbc/_reference.py
+    (tests/test_reference_equivalence.py).
+    """
+    crc = init
+    table = _CRC16_TABLE
+    for byte in data:
+        crc = ((crc << 8) & 0xFFFF) ^ table[(crc >> 8) ^ byte]
     return crc
 
 

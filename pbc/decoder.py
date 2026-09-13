@@ -7,6 +7,7 @@ integrity map.
 MIT License - Copyright (c) 2026 François Légaré
 """
 
+import hashlib
 import numpy as np
 from dataclasses import dataclass, field
 from enum import IntEnum
@@ -18,7 +19,10 @@ from . import (
     SYNC_BITS, SYNC_HAMMING_THRESHOLD, _crc16_ccitt,
     DEFAULT_TILE_SIZE, compute_grid, compute_genesis_hash
 )
-from .encoder import _extract_bits, _bits_to_bytes
+from .encoder import _extract_bits, _bits_to_bytes, _read_blocks, _crc16_rows
+
+_SYNC_ROW = np.frombuffer(SYNC_PATTERN, dtype=np.uint8)
+_POPCOUNT = np.array([bin(i).count("1") for i in range(256)], dtype=np.uint8)
 
 
 # =============================================================================
@@ -246,6 +250,11 @@ def _verify_tile(tile_flat: np.ndarray,
     """
     Verify blocks within a single tile's flattened pixel array.
 
+    All blocks are gathered in one vectorized read; the sync and CRC checks run
+    on the (num_blocks, 32) byte matrix.  Only the hash chain, which is
+    sequential by construction, loops per block.  Results are identical, field
+    for field, to the per-block reference in pbc/_reference.py.
+
     Returns:
         (block_results, first_originator_id | None)
     """
@@ -253,15 +262,25 @@ def _verify_tile(tile_flat: np.ndarray,
     prev_block_bytes = None
     first_originator = None
 
+    rows = _read_blocks(tile_flat, 0, num_blocks, pixels_per_block, k)
+    sync_diff = rows[:, :6] ^ _SYNC_ROW
+    if strict:
+        sync_ok = (~sync_diff.any(axis=1)).tolist()
+    else:
+        sync_ok = (_POPCOUNT[sync_diff].sum(axis=1) <= SYNC_HAMMING_THRESHOLD).tolist()
+    stored_crc = (rows[:, 24].astype(np.uint32) << 8) | rows[:, 25]
+    crc_ok = (_crc16_rows(rows[:, :24]) == stored_crc).tolist()
+    raw = rows.tobytes()
+    sha256 = hashlib.sha256
+
     for block_idx in range(num_blocks):
         pixel_start = block_idx * pixels_per_block
         pixel_end   = min(pixel_start + pixels_per_block, tile_flat.shape[0])
 
-        block_bits  = _extract_bits(tile_flat, pixel_start, BLOCK_BITS, k=k)
-        block_bytes = _bits_to_bytes(block_bits)
+        block_bytes = raw[block_idx * 32:(block_idx + 1) * 32]
 
         # Sync check
-        if not _check_sync(block_bytes[:6], strict):
+        if not sync_ok[block_idx]:
             results.append(BlockResult(
                 status=BlockStatus.ABSENT,
                 block_index=block_idx,
@@ -284,9 +303,8 @@ def _verify_tile(tile_flat: np.ndarray,
             prev_block_bytes = None
             continue
 
-        # CRC check
-        expected_crc = _crc16_ccitt(block_bytes[:24])
-        if block.crc16 != expected_crc:
+        # CRC check (computed for all blocks at once above)
+        if not crc_ok[block_idx]:
             results.append(BlockResult(
                 status=BlockStatus.RED,
                 block_index=block_idx,
@@ -334,7 +352,7 @@ def _verify_tile(tile_flat: np.ndarray,
                 ))
                 prev_block_bytes = bytes(block_bytes)
                 continue
-            expected_hash = block.compute_chain_hash(prev_block_bytes)
+            expected_hash = sha256(prev_block_bytes).digest()[:6]   # == compute_chain_hash
             if block.chain_hash != expected_hash:
                 results.append(BlockResult(
                     status=BlockStatus.YELLOW,

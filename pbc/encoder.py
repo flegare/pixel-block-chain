@@ -7,6 +7,8 @@ Each tile in the adaptive grid receives its own independent chain.
 MIT License - Copyright (c) 2026 François Légaré
 """
 
+import hashlib
+import struct
 import time
 import numpy as np
 from typing import Optional
@@ -16,7 +18,7 @@ from . import (
     BITS_PER_PIXEL, PIXELS_PER_BLOCK, LSB_MASK, CLEAR_MASK,
     SYNC_PATTERN, PBC_VERSION, TERMINAL_INDEX,
     DEFAULT_TILE_SIZE, compute_grid,
-    compute_genesis_hash, generate_originator_id, _crc16_ccitt
+    compute_genesis_hash, generate_originator_id, _crc16_ccitt, _CRC16_TABLE
 )
 
 
@@ -90,34 +92,11 @@ def encode(image: np.ndarray,
             genesis_hash = compute_genesis_hash(
                 originator_id, tx, ty, timestamp)
 
-            prev_block_bytes = None
-            pixel_offset     = 0
-
-            for block_idx in range(num_blocks):
-                block = PBCBlock()
-                block.sync            = SYNC_PATTERN
-                block.version         = PBC_VERSION
-                block.originator_id   = originator_id
-                block.opcode          = opcode
-                block.block_index     = block_idx & 0xFFFF
-                block.tile_x          = tx
-                block.tile_y          = ty
-                block.timestamp_delta = ts_delta
-                block.extension       = 0
-
-                if block_idx == 0:
-                    block.chain_hash = genesis_hash
-                else:
-                    block.chain_hash = block.compute_chain_hash(prev_block_bytes)
-
-                block.crc16 = block.compute_crc()
-
-                block_bytes = block.to_bits()
-                prev_block_bytes = bytes(block_bytes)
-
-                bit_stream = _bytes_to_bits(block_bytes)
-                _embed_bits(tile_flat, pixel_offset, bit_stream, k=k)
-                pixel_offset += pixels_per_block
+            # Serialize the tile's whole chain, then embed it in one vectorized
+            # write (bit-exact with the per-block loop in pbc/_reference.py).
+            blocks = _serialize_chain(num_blocks, 0, originator_id, opcode, tx, ty,
+                                      ts_delta, 0, genesis_hash)
+            _write_blocks(tile_flat, blocks, 0, pixels_per_block, k)
 
             # Write tile_flat back (numpy view already aliases encoded)
             tile_pixels[:] = tile_flat.reshape(tile_pixels.shape)
@@ -183,37 +162,12 @@ def encode_region(image: np.ndarray,
             # Chain block 0 from the existing block 0 bytes so the decoder
             # sees a genesis mismatch and correctly flags this tile YELLOW
             # (PBC-aware re-encoding), instead of GREEN (untouched original).
-            orig_bits    = _extract_bits(tile_flat, 0, BLOCK_BITS)
-            orig_bytes   = _bits_to_bytes(orig_bits)
+            orig_bytes   = _read_blocks(tile_flat, 0, 1, PIXELS_PER_BLOCK)[0].tobytes()
             genesis_hash = PBCBlock().compute_chain_hash(orig_bytes)
 
-            prev_block_bytes = None
-            pixel_offset     = 0
-
-            for block_idx in range(num_blocks):
-                block = PBCBlock()
-                block.sync            = SYNC_PATTERN
-                block.version         = PBC_VERSION
-                block.originator_id   = originator_id
-                block.opcode          = opcode
-                block.block_index     = block_idx & 0xFFFF
-                block.tile_x          = tx
-                block.tile_y          = ty
-                block.timestamp_delta = ts_delta
-                block.extension       = 0
-
-                if block_idx == 0:
-                    block.chain_hash = genesis_hash
-                else:
-                    block.chain_hash = block.compute_chain_hash(prev_block_bytes)
-
-                block.crc16  = block.compute_crc()
-                block_bytes  = block.to_bits()
-                prev_block_bytes = bytes(block_bytes)
-
-                bit_stream = _bytes_to_bits(block_bytes)
-                _embed_bits(tile_flat, pixel_offset, bit_stream)
-                pixel_offset += PIXELS_PER_BLOCK
+            blocks = _serialize_chain(num_blocks, 0, originator_id, opcode, tx, ty,
+                                      ts_delta, 0, genesis_hash)
+            _write_blocks(tile_flat, blocks, 0, PIXELS_PER_BLOCK)
 
             tile_pixels[:] = tile_flat.reshape(tile_pixels.shape)
 
@@ -291,32 +245,12 @@ def append_edit(image: np.ndarray,
             split_block = max(1, int(num_blocks * split_fraction))
 
             # Read the pivot block's bytes to chain from it.
-            pivot_offset = (split_block - 1) * PIXELS_PER_BLOCK
-            pivot_bits   = _extract_bits(tile_flat, pivot_offset, BLOCK_BITS)
-            pivot_bytes  = bytes(_bits_to_bytes(pivot_bits))
+            pivot_bytes = _read_blocks(tile_flat, split_block - 1, 1, PIXELS_PER_BLOCK)[0].tobytes()
 
-            prev_block_bytes = pivot_bytes
-
-            for block_idx in range(split_block, num_blocks):
-                block = PBCBlock()
-                block.sync            = SYNC_PATTERN
-                block.version         = PBC_VERSION
-                block.originator_id   = originator_id
-                block.opcode          = opcode
-                block.block_index     = block_idx & 0xFFFF
-                block.tile_x          = tx
-                block.tile_y          = ty
-                block.timestamp_delta = ts_delta
-                block.extension       = 0
-                block.chain_hash      = block.compute_chain_hash(prev_block_bytes)
-                block.crc16           = block.compute_crc()
-
-                block_bytes      = block.to_bits()
-                prev_block_bytes = bytes(block_bytes)
-
-                bit_stream   = _bytes_to_bits(block_bytes)
-                pixel_offset = block_idx * PIXELS_PER_BLOCK
-                _embed_bits(tile_flat, pixel_offset, bit_stream)
+            blocks = _serialize_chain(num_blocks - split_block, split_block, originator_id,
+                                      opcode, tx, ty, ts_delta, 0,
+                                      PBCBlock().compute_chain_hash(pivot_bytes))
+            _write_blocks(tile_flat, blocks, split_block, PIXELS_PER_BLOCK)
 
             tile_pixels[:] = tile_flat.reshape(tile_pixels.shape)
 
@@ -327,77 +261,200 @@ def append_edit(image: np.ndarray,
 # Bit manipulation helpers
 # =============================================================================
 
-def _bytes_to_bits(data: bytes) -> list:
-    """Convert bytes to a list of individual bits (MSB first)."""
-    bits = []
-    for byte in data:
-        for i in range(7, -1, -1):
-            bits.append((byte >> i) & 1)
-    return bits
+# Vectorized with NumPy.  Every function here is verified bit-exact against the
+# per-bit reference implementation in pbc/_reference.py
+# (tests/test_reference_equivalence.py, tests/test_golden_bitexact.py).
+
+def _bytes_to_bits(data: bytes) -> np.ndarray:
+    """Convert bytes to an array of individual bits (uint8, MSB first)."""
+    return np.unpackbits(np.frombuffer(bytes(data), dtype=np.uint8))
 
 
-def _embed_bits(flat_pixels: np.ndarray, pixel_offset: int, bits: list,
+def _group_bits(bits: np.ndarray, k: int) -> np.ndarray:
+    """Pack rows of bits k at a time, MSB first: (..., m*k) -> (..., m) uint8."""
+    if k == 1:
+        return bits
+    groups = bits.reshape(bits.shape[:-1] + (-1, k))
+    vals = np.zeros(groups.shape[:-1], dtype=np.uint8)
+    for j in range(k):
+        vals |= groups[..., j] << (k - 1 - j)
+    return vals
+
+
+def _flat_slots(flat_pixels: np.ndarray, start: int, count: int):
+    """(read view or values, writer) for `count` channel slots from slot `start`."""
+    if flat_pixels.flags.c_contiguous:
+        seg = flat_pixels.reshape(-1)[start:start + count]
+        def write(values):
+            seg[:] = values
+        return seg, write
+    idx = np.arange(start, start + count)
+    rows, cols = idx // CHANNELS, idx % CHANNELS
+    def write(values):
+        flat_pixels[rows, cols] = values
+    return flat_pixels[rows, cols], write
+
+
+def _embed_bits(flat_pixels: np.ndarray, pixel_offset: int, bits,
                 k: int = 1):
     """
     Embed a bit stream into the k least-significant bits of each channel.
 
     Each pixel contributes k bits per channel (3k bits total).
     k=1: embed in bit 0 only (LSB).  k=3: embed in bits 2-1-0.
+    The last channel slot is zero-padded; writing stops at the array end.
     """
-    lsb_mask_k   = (1 << k) - 1
-    clear_mask_k = 0xFF ^ lsb_mask_k
-    bit_idx    = 0
-    total_bits = len(bits)
-    px         = pixel_offset
-
-    while bit_idx < total_bits and px < len(flat_pixels):
-        for ch in range(CHANNELS):
-            val = 0
-            for b in range(k):
-                val = (val << 1) | (bits[bit_idx] if bit_idx < total_bits else 0)
-                bit_idx += 1
-            flat_pixels[px, ch] = (int(flat_pixels[px, ch]) & clear_mask_k) | val
-            if bit_idx >= total_bits:
-                break
-        px += 1
+    bits = np.asarray(bits, dtype=np.uint8).reshape(-1)
+    n_px = len(flat_pixels)
+    if bits.size == 0 or pixel_offset >= n_px:
+        return
+    slots = min(-(-bits.size // k), (n_px - pixel_offset) * CHANNELS)
+    padded = np.zeros(slots * k, dtype=np.uint8)
+    used = min(bits.size, slots * k)
+    padded[:used] = bits[:used]
+    current, write = _flat_slots(flat_pixels, pixel_offset * CHANNELS, slots)
+    write((current & (0xFF ^ ((1 << k) - 1))) | _group_bits(padded, k))
 
 
 def _extract_bits(flat_pixels: np.ndarray, pixel_offset: int,
-                  num_bits: int, k: int = 1) -> list:
+                  num_bits: int, k: int = 1) -> np.ndarray:
     """
     Extract bits from the k least-significant bits of each channel.
 
     Reads k bits per channel (MSB first within each channel).
     k=1: read bit 0.  k=3: read bits 2-1-0 (MSB first).
+    Returns a uint8 bit array, shorter than num_bits if the array ends first.
     """
-    lsb_mask_k = (1 << k) - 1
-    bits = []
-    px   = pixel_offset
-
-    while len(bits) < num_bits and px < len(flat_pixels):
-        for ch in range(CHANNELS):
-            val = int(flat_pixels[px, ch]) & lsb_mask_k
-            for b in range(k - 1, -1, -1):
-                bits.append((val >> b) & 1)
-            if len(bits) >= num_bits:
-                break
-        px += 1
-
+    n_px = len(flat_pixels)
+    if num_bits <= 0 or pixel_offset >= n_px:
+        return np.zeros(0, dtype=np.uint8)
+    slots = min(-(-num_bits // k), (n_px - pixel_offset) * CHANNELS)
+    vals = _flat_slots(flat_pixels, pixel_offset * CHANNELS, slots)[0] & ((1 << k) - 1)
+    if k == 1:
+        return vals[:num_bits]
+    bits = np.unpackbits(vals[:, None], axis=1)[:, 8 - k:].reshape(-1)
     return bits[:num_bits]
 
 
-def _bits_to_bytes(bits: list) -> bytes:
-    """Convert a list of bits back to bytes."""
-    result = bytearray()
-    for i in range(0, len(bits), 8):
-        byte = 0
-        for j in range(8):
-            if i + j < len(bits):
-                byte = (byte << 1) | bits[i + j]
-            else:
-                byte = byte << 1
-        result.append(byte)
-    return bytes(result)
+def _bits_to_bytes(bits) -> bytes:
+    """Convert a sequence of bits (MSB first) back to bytes, zero-padding the last."""
+    return np.packbits(np.asarray(bits, dtype=np.uint8)).tobytes()
+
+
+# =============================================================================
+# Whole-tile block helpers (vectorized)
+# =============================================================================
+
+_SYNC_ROW = np.frombuffer(SYNC_PATTERN, dtype=np.uint8)
+_CRC16_TABLE_NP = np.array(_CRC16_TABLE, dtype=np.uint32)
+
+
+def _crc16_rows(rows: np.ndarray) -> np.ndarray:
+    """CRC-16/CCITT of every row of a (n, L) uint8 array at once (uint32 values)."""
+    crc = np.full(rows.shape[0], 0xFFFF, dtype=np.uint32)
+    for j in range(rows.shape[1]):
+        crc = ((crc << 8) & 0xFFFF) ^ _CRC16_TABLE_NP[(crc >> 8) ^ rows[:, j]]
+    return crc
+
+
+def _be_columns(values, nbytes: int, n: int, field_bytes: Optional[int] = None) -> np.ndarray:
+    """Big-endian byte columns (n, nbytes) of an unsigned scalar or per-block sequence.
+
+    Values must fit in `field_bytes` (default nbytes) bytes, as struct.pack requires;
+    only the low `nbytes` bytes are kept (the 24-bit timestamp packs '>I'[1:]).
+    """
+    if np.ndim(values) == 0:                       # same value for every block
+        v = int(values)
+        if v < 0 or v >> (8 * (field_bytes or nbytes)):
+            raise struct.error(f"value out of range for a {field_bytes or nbytes}-byte field")
+        return np.frombuffer((v & ((1 << (8 * nbytes)) - 1)).to_bytes(nbytes, "big"),
+                             dtype=np.uint8)
+    v = np.asarray(values, dtype=np.int64)
+    if np.any(v < 0) or np.any(v >> (8 * (field_bytes or nbytes))):
+        raise struct.error(f"value out of range for a {field_bytes or nbytes}-byte field")
+    shifts = np.arange((nbytes - 1) * 8, -1, -8)
+    return ((np.broadcast_to(v, (n,))[:, None] >> shifts) & 0xFF).astype(np.uint8)
+
+
+def _serialize_chain(n: int, first_index: int, originator_id, opcode, tile_x: int,
+                     tile_y: int, timestamp_delta: int, extension,
+                     chain_hash0: bytes) -> np.ndarray:
+    """
+    Serialize n consecutive blocks of one tile chain as (n, 32) uint8 rows.
+
+    Block i gets block_index first_index + i; block 0 carries chain_hash0 and
+    every later block the truncated SHA-256 of the previous block's 32 bytes.
+    originator_id, opcode and extension may be scalars or per-block sequences.
+    Field layout and CRC match PBCBlock.to_bits() / compute_crc() byte for byte.
+    """
+    rows = np.empty((n, 32), dtype=np.uint8)
+    if n == 0:
+        return rows
+    rows[:, 0:6]   = _SYNC_ROW
+    rows[:, 6]     = PBC_VERSION & 0xFF
+    rows[:, 7:11]  = _be_columns(originator_id, 4, n)
+    rows[:, 11:13] = _be_columns(opcode, 2, n)
+    rows[:, 13:15] = _be_columns(np.arange(first_index, first_index + n) & 0xFFFF, 2, n)
+    rows[:, 15]    = tile_x & 0xFF
+    rows[:, 16]    = tile_y & 0xFF
+    rows[:, 17:20] = _be_columns(timestamp_delta, 3, n, field_bytes=4)
+    rows[:, 20:24] = _be_columns(extension, 4, n)
+    crc = _crc16_rows(rows[:, :24])                # CRC excludes the chain hash
+    rows[:, 24] = crc >> 8
+    rows[:, 25] = crc & 0xFF
+
+    # The hash chain is inherently sequential: block i hashes block i-1.
+    buf = bytearray(rows.tobytes())
+    chain_hash = bytes(chain_hash0[:6])
+    sha256 = hashlib.sha256
+    for o in range(0, n * 32, 32):
+        buf[o + 26:o + 32] = chain_hash
+        chain_hash = sha256(buf[o:o + 32]).digest()[:6]
+    return np.frombuffer(buf, dtype=np.uint8).reshape(n, 32)
+
+
+def _write_blocks(tile_flat: np.ndarray, blocks: np.ndarray, first_block: int,
+                  pixels_per_block: int, k: int = 1):
+    """
+    Embed (n, 32) block rows into a tile, block i at pixel
+    (first_block + i) * pixels_per_block.  Same result as calling
+    _embed_bits(tile_flat, offset, _bytes_to_bits(row), k) row by row; every
+    block must fit inside the tile.
+    """
+    n = blocks.shape[0]
+    if n == 0:
+        return
+    slots_used = -(-BLOCK_BITS // k)
+    per_block = pixels_per_block * CHANNELS
+    start, stop = first_block * per_block, (first_block + n) * per_block
+    if not tile_flat.flags.c_contiguous or stop > tile_flat.size:
+        for i in range(n):                          # general (slow) path, never hit by callers
+            _embed_bits(tile_flat, (first_block + i) * pixels_per_block,
+                        _bytes_to_bits(blocks[i].tobytes()), k=k)
+        return
+    bits = np.zeros((n, slots_used * k), dtype=np.uint8)
+    bits[:, :BLOCK_BITS] = np.unpackbits(blocks, axis=1)
+    region = tile_flat.reshape(-1)[start:stop].reshape(n, per_block)
+    region[:, :slots_used] = (region[:, :slots_used] & (0xFF ^ ((1 << k) - 1))) \
+        | _group_bits(bits, k)
+
+
+def _read_blocks(tile_flat: np.ndarray, first_block: int, n: int,
+                 pixels_per_block: int, k: int = 1) -> np.ndarray:
+    """
+    (n, 32) uint8 rows of the n blocks starting at block first_block.  Same bytes
+    as _bits_to_bytes(_extract_bits(tile_flat, offset, BLOCK_BITS, k)) per block;
+    every block must fit inside the tile.
+    """
+    slots_used = -(-BLOCK_BITS // k)
+    per_block = pixels_per_block * CHANNELS
+    flat = tile_flat.reshape(-1)
+    region = flat[first_block * per_block:(first_block + n) * per_block]
+    region = region.reshape(n, per_block)[:, :slots_used] & ((1 << k) - 1)
+    if k > 1:
+        region = np.unpackbits(region[:, :, None], axis=2)[:, :, 8 - k:] \
+            .reshape(n, slots_used * k)[:, :BLOCK_BITS]
+    return np.packbits(region, axis=1)
 
 
 def encode_sequence(image: np.ndarray,
@@ -460,39 +517,20 @@ def encode_sequence(image: np.ndarray,
             if num_blocks < 1:
                 continue
 
-            genesis_hash     = compute_genesis_hash(first_oid, tx, ty, timestamp)
-            prev_block_bytes = None
-            global_idx       = 0
+            genesis_hash = compute_genesis_hash(first_oid, tx, ty, timestamp)
 
+            # Per-block fields of the event sequence, cut at the tile's capacity
+            oids, opcodes, extensions = [], [], []
             for (orig_str, opcode, block_count, extension) in events:
-                oid = oid_cache[orig_str]
-                for _ in range(block_count):
-                    if global_idx >= num_blocks:
-                        break
+                take = max(0, min(block_count, num_blocks - len(oids)))
+                oids += [oid_cache[orig_str]] * take
+                opcodes += [opcode] * take
+                extensions += [extension & 0xFFFFFFFF] * take
 
-                    block = PBCBlock()
-                    block.sync            = SYNC_PATTERN
-                    block.version         = PBC_VERSION
-                    block.originator_id   = oid
-                    block.opcode          = opcode
-                    block.block_index     = global_idx & 0xFFFF
-                    block.tile_x          = tx
-                    block.tile_y          = ty
-                    block.timestamp_delta = ts_delta
-                    block.extension       = extension & 0xFFFFFFFF
-
-                    if global_idx == 0:
-                        block.chain_hash = genesis_hash
-                    else:
-                        block.chain_hash = block.compute_chain_hash(prev_block_bytes)
-
-                    block.crc16      = block.compute_crc()
-                    block_bytes      = block.to_bits()
-                    prev_block_bytes = bytes(block_bytes)
-
-                    bit_stream = _bytes_to_bits(block_bytes)
-                    _embed_bits(tile_flat, global_idx * PIXELS_PER_BLOCK, bit_stream)
-                    global_idx += 1
+            if oids:
+                blocks = _serialize_chain(len(oids), 0, oids, opcodes, tx, ty,
+                                          ts_delta, extensions, genesis_hash)
+                _write_blocks(tile_flat, blocks, 0, PIXELS_PER_BLOCK)
 
             tile_pixels[:] = tile_flat.reshape(tile_pixels.shape)
 
