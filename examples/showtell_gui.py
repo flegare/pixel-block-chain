@@ -86,6 +86,69 @@ RUN_COMPARE_TEXT = [("Software", "NumPy + Pillow", "PyTorch + Lightning"),
 DEMO_SECTIONS = ["Intro", "Protect", "One chain per tile", "What it takes", "Edit",
                  "Verify", "Verdict", "Edit Ledger", "Intact tile", "Tampered tile",
                  "Copied tile"]
+# Verbatim excerpts of the ICIP 2026 paper (paper/PBC_ICIP2026_CameraReady.tex), opened
+# from the "▸ Paper: …" link in the explainer bar. LaTeX math and cross-references are
+# rendered as plain text; keep the wording identical to the paper.
+# key: (link label, title, source, paragraphs, demo note or None)
+PAPER_EXCERPTS = {
+    "quality": (
+        "headline results", "Abstract (headline results)", "Abstract",
+        ["On a 99-image benchmark spanning real photographs and synthetic content, PBC "
+         "achieves a mean PSNR of 51.2 dB at embedding depth k=1, and, under a synthetic "
+         "rectangular tampering protocol, 100% tile-level tamper detection with 0% false "
+         "positives, using no neural encoder and no external service dependency."],
+        None),
+    "lemma1": (
+        "Lemma 1", "Lemma 1 (Cascade isolation by construction)",
+        "Section “Cascade Isolation by Construction”",
+        ["In PBC's grid-of-chains architecture, the verification outcome of tile (tx, ty) is "
+         "independent of the verification outcome of any other tile (tx′, ty′) with "
+         "(tx′, ty′) ≠ (tx, ty).",
+         "Proof sketch. Each chain hash in tile (tx, ty) is computed exclusively over bytes of "
+         "the preceding block within that tile. No field in any block references data from "
+         "another tile. A modification to tile (tx, ty) changes the genesis hash of that tile "
+         "and all subsequent chain hashes within it, but leaves every byte of every block in "
+         "(tx′, ty′) unchanged. Because the verification predicate for (tx′, ty′) is a "
+         "function only of the blocks it reads, its outcome is unaffected."],
+        None),
+    "ledger": (
+        "Edit Ledger", "Per-Tile Edit Ledger and Append Mode",
+        "Section “Per-Tile Edit Ledger and Append Mode”",
+        ["A genesis block is written at encode time. Subsequent append blocks are written by "
+         "any compliant editor that modifies a tile. If only subset S ⊆ T of tiles change, "
+         "append mode reads the existing chain in each t ∈ S, appends one new block carrying "
+         "the edit metadata and updated chain hash, and writes back only those tiles. The "
+         "Edit Ledger answers not only whether the image changed but where edit continuity "
+         "was preserved versus where a new action occurred. Partial-image append is faster "
+         "than full re-encode because the unmodified |T| − |S| tiles are never touched."],
+        "Demo note: the cyan pen in this demo re-encodes each tile it touches (encode_region), "
+        "so that tile's ledger shows only the editor's entry. Append mode is how an editor "
+        "keeps the earlier history as well."),
+    "detection": (
+        "detection result", "Tamper Detection and Localization",
+        "Section “Tamper Detection and Localization”",
+        ["Across all 99 images and all tamper simulations, PBC achieves 100% tile-level tamper "
+         "detection and 0% false positives at k=1. Every tampered tile is flagged RED; every "
+         "untouched tile is flagged GREEN. This result holds across all content classes, "
+         "confirming that detection accuracy is content-independent. Because the tampering "
+         "protocol overwrites pixels with random values, it disrupts the embedded LSB chain "
+         "by construction; the headline detection and false-positive figures should therefore "
+         "be read as confirming exact tile-granularity localization and the cascade-isolation "
+         "property of Lemma 1, rather than as robustness to subtle or LSB-preserving "
+         "manipulation, which we leave to the broader evaluation outlined in Section "
+         "“Limitations”."],
+        None),
+    "identity": (
+        "originator ID", "Originator ID and identity binding",
+        "Sections “Block Format” and “Limitations”",
+        ["The originator ID is the 32-bit truncated SHA-256 of a self-asserted identity "
+         "string, optionally bound to an external certificate.",
+         "Identity binding. The originator ID is self-asserted. Cryptographic binding (e.g., "
+         "Ed25519 signature over each block) is a planned extension; as stated in the threat "
+         "model, PBC does not by itself authenticate the originator or provide signed "
+         "provenance."],
+        None),
+}
 PREVIEW_W, PREVIEW_H = 560, 302   # fixed image boxes; leaves room for the explainer bar
 
 
@@ -278,6 +341,33 @@ class Demo(tk.Tk):
         self.bullets = tk.Canvas(bar, width=len(DEMO_SECTIONS) * 30 + 70, height=26,
                                  bg=PANE_BG, highlightthickness=0, cursor="hand2")
         self.bullets.grid(row=1, column=0, pady=(0, 6))
+        # "▸ Paper: …" link, bottom-left of the bar: opens a verbatim excerpt of the paper
+        self.ref_key = None
+        self.ref_link = tk.Label(bar, text="", font=("Segoe UI", 13, "bold"), fg=BRUSH_EDITOR,
+                                 bg=PANE_BG, cursor="hand2")
+        self.ref_link.grid(row=1, column=0, sticky="w", padx=16, pady=(0, 6))
+        self.ref_link.bind("<Button-1>", lambda e: self._open_excerpt(self.ref_key))
+
+        # paper excerpt panel, floated over the image panes when a link is clicked
+        self.excerpt = tk.Frame(self, bg=NAVY, padx=24, pady=16,
+                                highlightbackground=BRUSH_EDITOR, highlightthickness=3)
+        self.excerpt_title = tk.Label(self.excerpt, font=("Segoe UI", 18, "bold"), fg="white",
+                                      bg=NAVY, wraplength=840, justify="left")
+        self.excerpt_title.pack(anchor="w")
+        self.excerpt_source = tk.Label(self.excerpt, font=("Segoe UI", 12), fg=GRAY, bg=NAVY,
+                                       wraplength=840, justify="left")
+        self.excerpt_source.pack(anchor="w", pady=(2, 10))
+        self.excerpt_body = tk.Label(self.excerpt, font=("Segoe UI", 15), fg=ICE, bg=NAVY,
+                                     wraplength=840, justify="left")
+        self.excerpt_body.pack(anchor="w")
+        self.excerpt_note = tk.Label(self.excerpt, font=("Segoe UI", 13), fg=YELLOW, bg=NAVY,
+                                     wraplength=840, justify="left")
+        self.excerpt_close = tk.Label(self.excerpt, text="✕ Close  (Esc)",
+                                      font=("Segoe UI", 13, "bold"), bg=BLUE, fg="white",
+                                      padx=14, pady=4, cursor="hand2")
+        self.excerpt_close.pack(anchor="e", pady=(12, 0))
+        self.excerpt_close.bind("<Button-1>", lambda e: self._close_excerpt())
+        self.bind_all("<Escape>", lambda e: self._close_excerpt())
         self.bullet_arc = self.pie_job = None
 
         # demo cursor: a big arrow in a borderless transparent window that glides to
@@ -548,12 +638,14 @@ class Demo(tk.Tk):
             self.pen_btn.configure(text="Pen: raw tamper → RED · click to switch",
                                    bg=BRUSH, fg="white")
 
-    def _explain(self, title, body, mono=False, legend=False):
-        """Fill the explainer bar (fixed size, so nothing else moves)."""
+    def _explain(self, title, body, mono=False, legend=False, ref=None):
+        """Fill the explainer bar (fixed size, so nothing else moves). `ref` names a
+        PAPER_EXCERPTS entry to offer as a "▸ Paper: …" link."""
         self.explain_title.configure(text=title)
         self.explain_body.configure(text=body, font=("Menlo", 13) if mono else ("Segoe UI", 14),
                                     justify="left" if mono else "center")
-        self.explain_mono, self.explain_legend = mono, legend
+        self.explain_mono, self.explain_legend, self.ref_key = mono, legend, ref
+        self.ref_link.configure(text=f"▸ Paper: {PAPER_EXCERPTS[ref][0]}" if ref else "")
         if legend:
             self.legend.pack(pady=(8, 0))
         else:
@@ -573,6 +665,26 @@ class Demo(tk.Tk):
         self._explain("Try it:   1 · PROTECT   →   2 · DRAW   →   3 · VERIFY",
                       "Switch pens with the button above the left image. After VERIFY, "
                       "click any tile to read its Edit Ledger.", legend=True)
+
+    def _open_excerpt(self, key):
+        """Show a verbatim excerpt of the paper over the image panes."""
+        if key not in PAPER_EXCERPTS:
+            return
+        _, title, source, paragraphs, note = PAPER_EXCERPTS[key]
+        self.excerpt_title.configure(text=title)
+        self.excerpt_source.configure(
+            text=f"From the paper (Légaré, Sion & April, IEEE ICIP 2026) · {source}")
+        self.excerpt_body.configure(text="\n\n".join(paragraphs))
+        if note:
+            self.excerpt_note.configure(text=note)
+            self.excerpt_note.pack(anchor="w", pady=(10, 0), before=self.excerpt_close)
+        else:
+            self.excerpt_note.pack_forget()
+        self.excerpt.place(relx=0.5, rely=0.62, anchor="center")
+        self.excerpt.lift()
+
+    def _close_excerpt(self):
+        self.excerpt.place_forget()
 
     def _ledger_candidates(self):
         """(logged edits, raw tampers, intact) tiles of the last verification.
@@ -614,7 +726,8 @@ class Demo(tk.Tk):
                 lines.append(f"blocks {e.start_block}–{e.end_block}  {e.opcode_name:<12}  "
                              f"oid 0x{e.originator_id:08X} \"{who}\"")
             lines.append("oid = first 32 bits of SHA-256(name) · self-asserted, not a signature")
-        self._explain(title, "\n".join(lines), mono=True)
+        self._explain(title, "\n".join(lines), mono=True,
+                      ref="identity" if t.status in (TileStatus.GREEN, TileStatus.YELLOW) else None)
         tw, th = res.width // res.cols, res.height // res.rows   # decoder geometry
         x1 = res.width if tx == res.cols - 1 else (tx + 1) * tw
         y1 = res.height if ty == res.rows - 1 else (ty + 1) * th
@@ -906,6 +1019,7 @@ class Demo(tk.Tk):
             self.demo_section = self.demo_ff = 0
             self.cursor_pos = None       # first glide starts from the window centre
         self.demo_on = True
+        self._close_excerpt()
         self.demo_btn.configure(text="■ Pause demo", bg="white", fg=NAVY)
         self._draw_bullets()
         if not resume:
@@ -929,7 +1043,7 @@ class Demo(tk.Tk):
             self.after_cancel(self.demo_job)
             self.demo_job = None
         self.demo_bar = (self.explain_title.cget("text"), self.explain_body.cget("text"),
-                         self.explain_mono, self.explain_legend)
+                         self.explain_mono, self.explain_legend, self.ref_key)
         self.demo_btn.configure(text="▶ Resume demo", bg=BLUE, fg="white")
         self._draw_bullets()             # stay visible: a paused demo can jump too
         self._pie(0)
@@ -1165,11 +1279,11 @@ class Demo(tk.Tk):
         widget.configure(highlightbackground=BRUSH_EDITOR if n % 2 == 0 else NAVY)
         self.after(140, self._flash, widget, n - 1)
 
-    def _card(self, title, body, legend=False):
+    def _card(self, title, body, legend=False, ref=None):
         """Step explanation in the explainer bar — auto demo only, not while jumping."""
         if not self.demo_on or self._ff():
             return
-        self._explain(title, body, legend=legend)
+        self._explain(title, body, legend=legend, ref=ref)
         self.update_idletasks()
 
     def _demo_script(self):
@@ -1185,7 +1299,8 @@ class Demo(tk.Tk):
         yield ("section", 1)
         self._card("STEP 1 · PROTECT",
                    "We write chains of hash-linked blocks into the least-significant bit "
-                   "of every pixel, one independent chain per tile. Invisible: ~51 dB PSNR.")
+                   "of every pixel, one independent chain per tile. Invisible: ~51 dB PSNR.",
+                   ref="quality")
         # protect while this card is read: one countdown covers the encoding and the rest
         read_ms, t_card = max(self._bar_read_ms(), 10000), time.perf_counter()   # ≥ encode time
         if not self._ff():
@@ -1205,7 +1320,7 @@ class Demo(tk.Tk):
                    "each hiding its own chain. Labels: tile size → blocks in its chain (e.g. "
                    f"{tw}×{th} px → {res.tile_results[0][0].block_count}). Tampering with one "
                    "tile can never affect its neighbours — guaranteed by design (see Lemma 1 "
-                   "in our paper).")
+                   "in our paper).", ref="lemma1")
         hold = self._bar_read_ms()
         self._show_grid(res, hold=hold)             # grid stays up while this card is read
         yield hold
@@ -1223,7 +1338,7 @@ class Demo(tk.Tk):
         self._card("STEP 2 · EDIT",
                    "Three edits: a raw scribble, an edit from a PBC-aware editor that records "
                    "itself in the Edit Ledger, and an exact copy of one tile pasted onto "
-                   "another.", legend=True)
+                   "another.", legend=True, ref="ledger")
         # edit while this card is read: one countdown covers the edits and the rest
         read_ms, t_card = max(self._bar_read_ms(), 16000), time.perf_counter()   # ≥ edit time
         if not self._ff():
@@ -1269,7 +1384,8 @@ class Demo(tk.Tk):
         yield ("section", 5)
         self._card("STEP 3 · VERIFY",
                    "The verifier re-reads every chain from the saved file. Each edit leaves "
-                   "its own colour; every tile nobody touched stays GREEN.", legend=True)
+                   "its own colour; every tile nobody touched stays GREEN.", legend=True,
+                   ref="detection")
         # verify while this card is read: the sweep, then the result on the right
         read_ms, t_card = max(self._bar_read_ms(), 10000), time.perf_counter()   # ≥ verify time
         if not self._ff():
@@ -1290,7 +1406,8 @@ class Demo(tk.Tk):
         self._card("EDIT LEDGER",
                    "Each tile's chain records who changed it and how: an operation code "
                    "plus an originator ID, the first 32 bits of SHA-256 of a self-asserted "
-                   "name. Binding it to a certificate / Ed25519 signature is future work.")
+                   "name. Binding it to a certificate / Ed25519 signature is future work.",
+                   ref="identity")
         yield self._bar_read_ms()
         _, red, green = self._ledger_candidates()
         res = self.verify_result
