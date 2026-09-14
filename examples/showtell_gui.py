@@ -14,7 +14,8 @@ MIT License — Francois Legare, 2026.
 Run:  python examples/showtell_gui.py            (add --demo to start the
       auto-demo loop; any click or key pauses it where it is — "Resume demo"
       continues from that step, "Demo from start" restarts the round;
-      --pace 1.3 gives every explainer 30% more time)
+      --pace 1.3 gives every explainer 30% more time; --fullscreen for a TV,
+      F11 toggles fullscreen; the layout scales to the window, --scale 1.4 forces a size)
 """
 
 import os
@@ -35,6 +36,7 @@ try:
 except ImportError:
     resource = None
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import filedialog, messagebox
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -73,6 +75,7 @@ MAX_SIDE = 1024   # downscale big photos so encode/verify stay ~1 s
 READING_WPM = 90         # slow, deliberate reading for a TV watched from a few metres
 ABSORB_MS = 5000         # extra time to look at the image and make sense of it
 CURSOR_HOT = 28          # arrow tip position inside the demo cursor image
+BASE_CURSOR_HOT = CURSOR_HOT
 # Slide 4 comparison, measured 13 Sep 2026 on the demo laptop (MacBookPro11,5,
 # i7-4870HQ, CPU only), 978×678 photo: the vectorized PBC implementation (1 core)
 # vs TrustMark "Q" (Adobe; PyTorch 2.2.2, 1 thread). Fixed values, not re-measured live.
@@ -178,7 +181,15 @@ PAPER_EXCERPTS = {
         "PBC-Forest 41.1–44.6% survival, grid mode 0%. The crop keeps 60% of the width × 80% "
         "of the height (47.9% of the image)."),
 }
-PREVIEW_W, PREVIEW_H = 560, 302   # fixed image boxes; leaves room for the explainer bar
+PREVIEW_W, PREVIEW_H = 560, 302   # image boxes; follow the UI scale (see Demo._apply_scale)
+BASE_PREVIEW_W, BASE_PREVIEW_H = PREVIEW_W, PREVIEW_H
+
+
+def fit_scale(w: int, h: int) -> float:
+    """Largest UI scale whose layout fits a w × h window, clamped to 0.6 … 3.0.
+    Measured: the layout needs ≈ 72 + 1120·s px wide and 190 + 577·s px tall (paddings
+    don't scale, everything else does); a 2% margin keeps it off the edges."""
+    return max(0.6, min(3.0, 0.98 * min((w - 72) / 1120, (h - 190) / 577)))
 
 
 def open_in_editor(path):
@@ -243,7 +254,15 @@ class Demo(tk.Tk):
         super().__init__()
         self.title("Pixel Block Chain — live demo (ICIP 2026)")
         self.configure(bg=NAVY)
-        self.geometry("1420x820")
+        # the whole layout scales with the window (laptop screen, HDMI TV, fullscreen …)
+        self.S, self.auto_scale, self.fonts, self._rescale_job = 1.0, True, {}, None
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        fit = fit_scale(sw - 40, sh - 90)
+        w = min(sw - 40, round((72 + 1120 * fit) / 0.98))
+        h = min(sh - 90, round((190 + 577 * fit) / 0.98))
+        self.geometry(f"{w}x{h}+{(sw - w) // 2}+{max(0, (sh - h) // 3)}")
+        self.ledger_tile = None       # tile outlined on the verdict pane
+        self.right_is_compare = False # right pane shows the slide-4 chart
         self.original = None          # np.ndarray, loaded photo
         self.protected = None         # np.ndarray, encoded
         self.work_mtime = None        # newest saved-file mtime seen (live watcher)
@@ -275,13 +294,12 @@ class Demo(tk.Tk):
         self.last_encode_s = 0.0
         self.machine = machine_name()
 
-        big = ("Segoe UI", 16, "bold")
-        huge = ("Segoe UI", 22, "bold")
+        big, huge = self._font(16, True), self._font(22, True)
 
         tk.Label(self, text="Tamper with our image — we'll show you exactly where.",
                  font=huge, fg="white", bg=NAVY).pack(pady=(10, 2))
         self.status = tk.Label(self, text="Load a photo (or use the default) to start.",
-                               font=("Segoe UI", 14), fg=ICE, bg=NAVY)
+                               font=self._font(14), fg=ICE, bg=NAVY)
         self.status.pack()
 
         btns = tk.Frame(self, bg=NAVY)
@@ -304,18 +322,18 @@ class Demo(tk.Tk):
 
         info = tk.Frame(self, bg=NAVY)
         info.pack(pady=(0, 6))
-        self.pbc_badge = tk.Label(info, text="", font=("Segoe UI", 15, "bold"),
+        self.pbc_badge = tk.Label(info, text="", font=self._font(15, True),
                                   fg=ICE, bg=NAVY, padx=14, pady=4)
         self.pbc_badge.pack(side="left", padx=6)
         mk("preview", "…or edit in Preview ↗" if platform.system() == "Darwin"
            else "…or edit in Paint ↗", self.edit_external,
-           parent=info, font=("Segoe UI", 13, "bold"), pady=4)
-        self.demo_btn = tk.Label(info, text="▶ Auto demo", font=("Segoe UI", 13, "bold"),
+           parent=info, font=self._font(13, True), pady=4)
+        self.demo_btn = tk.Label(info, text="▶ Auto demo", font=self._font(13, True),
                                  bg=BLUE, fg="white", padx=18, pady=4, cursor="hand2",
                                  width=14)                 # fixed: label text changes
         self.demo_btn.bind("<Button-1>", lambda e: self.toggle_demo())
         self.demo_btn.pack(side="left", padx=6)
-        self.restart_btn = tk.Label(info, text="⟲ Demo from start", font=("Segoe UI", 13, "bold"),
+        self.restart_btn = tk.Label(info, text="⟲ Demo from start", font=self._font(13, True),
                                     bg=BLUE, fg="white", padx=18, pady=4, cursor="hand2")
         self.restart_btn.bind("<Button-1>", lambda e: self.start_demo(fresh=True))
         self.restart_btn.pack(side="left", padx=6)
@@ -328,7 +346,7 @@ class Demo(tk.Tk):
                            lambda e: None if self.demo_on else self._draw(e, start=True))
         self.left_lbl.bind("<B1-Motion>",
                            lambda e: None if self.demo_on else self._draw(e))
-        self.pen_btn = tk.Label(self.left_lbl.master, font=("Segoe UI", 13, "bold"),
+        self.pen_btn = tk.Label(self.left_lbl.master, font=self._font(13, True),
                                 padx=14, pady=3, cursor="hand2",
                                 highlightthickness=3, highlightbackground=NAVY)
         self.pen_btn.bind("<Button-1>",
@@ -350,20 +368,21 @@ class Demo(tk.Tk):
         bar = tk.Frame(self, bg=PANE_BG, width=1160, height=150,
                        highlightbackground=BLUE, highlightthickness=2)
         bar.pack(before=panes, pady=(4, 6))       # read first, then look at the images
+        self.bar = bar
         bar.grid_propagate(False)
         bar.columnconfigure(0, weight=1)
         bar.rowconfigure(0, weight=1)
         text = tk.Frame(bar, bg=PANE_BG)
         text.grid(row=0, column=0)
-        self.explain_title = tk.Label(text, font=("Segoe UI", 18, "bold"), fg="white", bg=PANE_BG)
+        self.explain_title = tk.Label(text, font=self._font(18, True), fg="white", bg=PANE_BG)
         self.explain_title.pack()
-        self.explain_body = tk.Label(text, font=("Segoe UI", 14), fg=ICE, bg=PANE_BG,
+        self.explain_body = tk.Label(text, font=self._font(14), fg=ICE, bg=PANE_BG,
                                      wraplength=1110, justify="center")
         self.explain_body.pack(pady=(4, 0))
         # pen colour legend, shown on the slides where the two pens matter
         self.legend = tk.Frame(text, bg=PANE_BG)
         for color, txt in PEN_LEGEND:
-            tk.Label(self.legend, text=txt, font=("Segoe UI", 13, "bold"), fg=color,
+            tk.Label(self.legend, text=txt, font=self._font(13, True), fg=color,
                      bg=PANE_BG).pack(side="left", padx=14)
         self.explain_legend = False
         # slide bullets: the active one doubles as the countdown pie; click any to jump
@@ -372,7 +391,7 @@ class Demo(tk.Tk):
         self.bullets.grid(row=1, column=0, pady=(0, 6))
         # "▸ Paper: …" link, bottom-left of the bar: opens a verbatim excerpt of the paper
         self.ref_key = None
-        self.ref_link = tk.Label(bar, text="", font=("Segoe UI", 13, "bold"), fg=BRUSH_EDITOR,
+        self.ref_link = tk.Label(bar, text="", font=self._font(13, True), fg=BRUSH_EDITOR,
                                  bg=PANE_BG, cursor="hand2")
         self.ref_link.grid(row=1, column=0, sticky="w", padx=16, pady=(0, 6))
         self.ref_link.bind("<Button-1>", lambda e: self._open_excerpt(self.ref_key))
@@ -380,19 +399,19 @@ class Demo(tk.Tk):
         # paper excerpt panel, floated over the image panes when a link is clicked
         self.excerpt = tk.Frame(self, bg=NAVY, padx=24, pady=16,
                                 highlightbackground=BRUSH_EDITOR, highlightthickness=3)
-        self.excerpt_title = tk.Label(self.excerpt, font=("Segoe UI", 18, "bold"), fg="white",
+        self.excerpt_title = tk.Label(self.excerpt, font=self._font(18, True), fg="white",
                                       bg=NAVY, wraplength=840, justify="left")
         self.excerpt_title.pack(anchor="w")
-        self.excerpt_source = tk.Label(self.excerpt, font=("Segoe UI", 12), fg=GRAY, bg=NAVY,
+        self.excerpt_source = tk.Label(self.excerpt, font=self._font(12), fg=GRAY, bg=NAVY,
                                        wraplength=840, justify="left")
         self.excerpt_source.pack(anchor="w", pady=(2, 10))
-        self.excerpt_body = tk.Label(self.excerpt, font=("Segoe UI", 15), fg=ICE, bg=NAVY,
+        self.excerpt_body = tk.Label(self.excerpt, font=self._font(15), fg=ICE, bg=NAVY,
                                      wraplength=840, justify="left")
         self.excerpt_body.pack(anchor="w")
-        self.excerpt_note = tk.Label(self.excerpt, font=("Segoe UI", 13), fg=YELLOW, bg=NAVY,
+        self.excerpt_note = tk.Label(self.excerpt, font=self._font(13), fg=YELLOW, bg=NAVY,
                                      wraplength=840, justify="left")
         self.excerpt_close = tk.Label(self.excerpt, text="✕ Close  (Esc)",
-                                      font=("Segoe UI", 13, "bold"), bg=BLUE, fg="white",
+                                      font=self._font(13, True), bg=BLUE, fg="white",
                                       padx=14, pady=4, cursor="hand2")
         self.excerpt_close.pack(anchor="e", pady=(12, 0))
         self.excerpt_close.bind("<Button-1>", lambda e: self._close_excerpt())
@@ -425,11 +444,83 @@ class Demo(tk.Tk):
         if os.path.exists(DEFAULT_IMAGE):
             self._load(DEFAULT_IMAGE)
         self._watch()
+        self.bind("<Configure>", self._on_configure)
+        self.bind_all("<F11>", lambda e: self._toggle_fullscreen())
+        self.after(100, self._rescale_check)
+
+    # ---- resolution independence: one UI scale factor derived from the window size ----
+
+    def _font(self, size, bold=False, family="Segoe UI"):
+        """Shared named font; resized in place (with every widget using it) on rescale."""
+        key = (family, size, bold)
+        if key not in self.fonts:
+            self.fonts[key] = tkfont.Font(family=family, size=max(8, round(size * self.S)),
+                                          weight="bold" if bold else "normal")
+        return self.fonts[key]
+
+    def _toggle_fullscreen(self):
+        self.attributes("-fullscreen", not self.attributes("-fullscreen"))
+
+    def _on_configure(self, e):
+        if e.widget is self and self.auto_scale:        # the window itself was resized
+            if self._rescale_job:
+                self.after_cancel(self._rescale_job)
+            self._rescale_job = self.after(250, self._rescale_check)
+
+    def _rescale_check(self):
+        """Match the UI scale to the window, at a quiet moment: never in the middle of a
+        PROTECT/VERIFY step, grid fade, chart animation or slide action."""
+        self._rescale_job = None
+        if not self.auto_scale:
+            return
+        s = fit_scale(self.winfo_width(), self.winfo_height())
+        if abs(s - self.S) / self.S < 0.03:
+            return
+        if self.busy or self.grid_job or self.compare_job or self.pie_span:
+            self._rescale_job = self.after(400, self._rescale_check)
+            return
+        self._apply_scale(s)
+
+    def _apply_scale(self, s):
+        """Resize everything for UI scale s (fonts, image boxes, explainer bar, slide dots,
+        cursor, paper panel), then re-render both panes from what they were showing."""
+        global PREVIEW_W, PREVIEW_H, CURSOR_HOT
+        self.S = s
+        for (family, size, bold), f in self.fonts.items():
+            f.configure(size=max(8, round(size * s)))
+        PREVIEW_W, PREVIEW_H = round(BASE_PREVIEW_W * s), round(BASE_PREVIEW_H * s)
+        CURSOR_HOT = max(8, round(BASE_CURSOR_HOT * s))
+        self.bar.configure(width=round(1160 * s), height=round(150 * s))
+        self.explain_body.configure(wraplength=round(1110 * s))
+        for w in (self.excerpt_title, self.excerpt_source, self.excerpt_body, self.excerpt_note):
+            w.configure(wraplength=round(840 * s))
+        self.bullets.configure(width=round((len(DEMO_SECTIONS) * 30 + 70) * s),
+                               height=round(26 * s))
+        self._draw_bullets()
+        self.cursor_imgs = [ImageTk.PhotoImage(self._cursor_image(p)) for p in (False, True)]
+        self.cursor_lbl.configure(image=self.cursor_imgs[0])
+        outlined, compare = self.ledger_tile, self.right_is_compare
+        for lbl in (self.left_lbl, self.right_lbl):
+            card, src = getattr(lbl, "text_card", None), getattr(lbl, "src", None)
+            if lbl is self.right_lbl and compare:
+                self._show(lbl, self._compare_frame(99.0))
+                self.right_is_compare = True
+            elif card is not None:
+                self._pane_text(lbl, card)
+            elif src is not None:
+                self._show(lbl, src)
+            else:
+                self._clear(lbl)
+        if self.verify_result is not None and not compare \
+                and getattr(self.right_lbl, "src", None) is not None:
+            self.verdict_thumb = self.right_lbl.thumb.copy()
+            if outlined:
+                self._outline_tile(*outlined)
 
     def _pane(self, parent, title):
         f = tk.Frame(parent, bg=NAVY)
         f.pack(side="left", expand=True, fill="both", padx=8)
-        tk.Label(f, text=title, font=("Segoe UI", 13), fg=ICE, bg=NAVY).pack()
+        tk.Label(f, text=title, font=self._font(13), fg=ICE, bg=NAVY).pack()
         lbl = tk.Label(f, bg=PANE_BG)
         lbl.pack(expand=True, fill="both", pady=4)
         self._clear(lbl)
@@ -438,6 +529,8 @@ class Demo(tk.Tk):
     def _show(self, lbl, pil_img):
         if lbl is getattr(self, "right_lbl", None):
             self._cancel_compare()
+            self.right_is_compare, self.ledger_tile = False, None
+        lbl.src, lbl.text_card = pil_img, None     # re-rendered from here on a rescale
         img = pil_img.copy()
         img.thumbnail((PREVIEW_W, PREVIEW_H))
         tkimg = ImageTk.PhotoImage(img)
@@ -450,6 +543,8 @@ class Demo(tk.Tk):
         # text units (640 chars x 460 lines), pushing the verdict off-screen
         if lbl is getattr(self, "right_lbl", None):
             self._cancel_compare()
+            self.right_is_compare, self.ledger_tile = False, None
+        lbl.src = lbl.text_card = None
         tkimg = ImageTk.PhotoImage(Image.new("RGB", (PREVIEW_W, PREVIEW_H), PANE_BG))
         lbl.configure(image=tkimg, width=PREVIEW_W, height=PREVIEW_H, text="")
         lbl.image = tkimg
@@ -467,7 +562,7 @@ class Demo(tk.Tk):
         f12, f11, f10 = self.compare_fonts
         x_lab, x_bar, bar_w, x_val = 8, 112, 290, 418
         if self.compare_bg is None:       # static parts drawn once; frames add bars + values
-            bg = Image.new("RGB", (PREVIEW_W, PREVIEW_H), PANE_BG)
+            bg = Image.new("RGB", (BASE_PREVIEW_W, BASE_PREVIEW_H), PANE_BG)   # drawn at scale 1
             d = ImageDraw.Draw(bg)
             for x, color, name in ((x_bar, ICE, "PBC"), (x_bar + 70, GRAY, "TrustMark (Adobe), 1 CPU core")):
                 d.rectangle([x, 9, x + 9, 18], fill=color)
@@ -511,12 +606,15 @@ class Demo(tk.Tk):
                     d.polygon([(x_val - 4, by - 1), (x_val - 4, by + 8), (x_val - 11, by + 3.5)],
                               fill="white")
             y += 30
+        if im.size != (PREVIEW_W, PREVIEW_H):      # then fitted to the current UI scale
+            im = im.resize((PREVIEW_W, PREVIEW_H), Image.LANCZOS)
         return im
 
     def _run_compare(self, t0=None):
         """Slide 4: animate the measured comparison in the right pane."""
         if t0 is None:
             self._show(self.right_lbl, self._compare_frame(0.0))
+            self.right_is_compare = True
             t0 = time.perf_counter()
         elapsed = time.perf_counter() - t0
         self.right_lbl.image.paste(self._compare_frame(elapsed))
@@ -528,8 +626,9 @@ class Demo(tk.Tk):
     def _pane_text(self, lbl, text):
         """Text card on an empty pane (used for the resource readout)."""
         self._clear(lbl)
-        lbl.configure(text=text, compound="center", fg=ICE, font=("Segoe UI", 14),
+        lbl.configure(text=text, compound="center", fg=ICE, font=self._font(14),
                       justify="center", wraplength=PREVIEW_W - 24)   # never widen the pane
+        lbl.text_card = text
 
     def _show_grid(self, res, hold=6000):
         """Flash the tile grid over the protected image, each tile labelled with its
@@ -650,7 +749,7 @@ class Demo(tk.Tk):
                 self.mask_owner = self.edit_img
             targets.append((self.mask_img, lbl.scale, 255))
         for im, s, fill in targets:
-            w = max(1, round(BRUSH_PX * s))
+            w = max(1, round(BRUSH_PX * self.S * s))   # same stroke width relative to the photo
             d = ImageDraw.Draw(im)
             d.line([(p0[0] * s, p0[1] * s), (x * s, y * s)], fill=fill, width=w)
             d.ellipse([x * s - w / 2, y * s - w / 2, x * s + w / 2, y * s + w / 2],
@@ -671,7 +770,8 @@ class Demo(tk.Tk):
         """Fill the explainer bar (fixed size, so nothing else moves). `ref` names a
         PAPER_EXCERPTS entry to offer as a "▸ Paper: …" link."""
         self.explain_title.configure(text=title)
-        self.explain_body.configure(text=body, font=("Menlo", 13) if mono else ("Segoe UI", 14),
+        self.explain_body.configure(text=body, font=self._font(13, family="Menlo") if mono
+                                    else self._font(14),
                                     justify="left" if mono else "center")
         self.explain_mono, self.explain_legend, self.ref_key = mono, legend, ref
         self.ref_link.configure(text=f"▸ Paper: {PAPER_EXCERPTS[ref][0]}" if ref else "")
@@ -757,14 +857,20 @@ class Demo(tk.Tk):
             lines.append("oid = first 32 bits of SHA-256(name) · self-asserted, not a signature")
         self._explain(title, "\n".join(lines), mono=True,
                       ref="identity" if t.status in (TileStatus.GREEN, TileStatus.YELLOW) else None)
+        self._outline_tile(tx, ty)
+
+    def _outline_tile(self, tx, ty):
+        """Outline one tile on the verdict pane (redrawn after a rescale)."""
+        res = self.verify_result
         tw, th = res.width // res.cols, res.height // res.rows   # decoder geometry
         x1 = res.width if tx == res.cols - 1 else (tx + 1) * tw
         y1 = res.height if ty == res.rows - 1 else (ty + 1) * th
         s = self.right_lbl.scale
         im = self.verdict_thumb.copy()
         ImageDraw.Draw(im).rectangle([tx * tw / s, ty * th / s, x1 / s - 1, y1 / s - 1],
-                                     outline="white", width=3)
+                                     outline="white", width=max(2, round(3 * self.S)))
         self.right_lbl.image.paste(im)
+        self.ledger_tile = (tx, ty)
 
     def _ledger_click(self, e):
         if self.demo_on or self.busy or self.verify_result is None:
@@ -1123,19 +1229,23 @@ class Demo(tk.Tk):
         if not self.demo_on and self.demo_gen is None:
             return
         cur, n = max(self.demo_section, self.demo_ff), len(DEMO_SECTIONS)  # a jump shows its target
+        z = self.S                                  # dot geometry follows the UI scale
         for i in range(n):
-            x, y, tag = 15 + i * 30, 13, f"slide{i}"
-            c.create_rectangle(x - 15, 0, x + 15, 26, fill=PANE_BG, outline="", tags=tag)  # hit area
+            x, y, tag = (15 + i * 30) * z, 13 * z, f"slide{i}"
+            c.create_rectangle(x - 15 * z, 0, x + 15 * z, 26 * z, fill=PANE_BG, outline="",
+                               tags=tag)            # hit area
             if i == cur:
-                c.create_oval(x - 10, y - 10, x + 10, y + 10, outline="white", width=2, tags=tag)
-                self.bullet_arc = c.create_arc(x - 7, y - 7, x + 7, y + 7, start=90, extent=359.9,
-                                               fill="white", outline="", tags=tag)
+                c.create_oval(x - 10 * z, y - 10 * z, x + 10 * z, y + 10 * z, outline="white",
+                              width=max(2, round(2 * z)), tags=tag)
+                self.bullet_arc = c.create_arc(x - 7 * z, y - 7 * z, x + 7 * z, y + 7 * z,
+                                               start=90, extent=359.9, fill="white", outline="",
+                                               tags=tag)
             else:
-                c.create_oval(x - 5, y - 5, x + 5, y + 5, outline=ICE, width=1.5, tags=tag,
-                              fill=BTN_OFF_FG if i < cur else PANE_BG)
+                c.create_oval(x - 5 * z, y - 5 * z, x + 5 * z, y + 5 * z, outline=ICE,
+                              width=1.5 * z, tags=tag, fill=BTN_OFF_FG if i < cur else PANE_BG)
             c.tag_bind(tag, "<Button-1>", lambda e, i=i: self.jump_demo(i))
-        c.create_text(15 + n * 30 + 8, 13, text=f"{cur + 1} / {n}", anchor="w", fill=ICE,
-                      font=("Segoe UI", 13, "bold"))
+        c.create_text((15 + n * 30 + 8) * z, 13 * z, text=f"{cur + 1} / {n}", anchor="w",
+                      fill=ICE, font=self._font(13, True))
 
     def _demo_interrupt(self, e):
         if self.demo_on and e.widget not in (self.demo_btn, self.restart_btn, self.bullets):
@@ -1186,14 +1296,17 @@ class Demo(tk.Tk):
     @staticmethod
     def _cursor_image(pressed):
         """Big white arrow with a navy outline; the pressed frame adds a click ripple."""
-        im = Image.new("RGBA", (110, 120), (0, 0, 0, 0))
+        z = CURSOR_HOT / BASE_CURSOR_HOT               # follows the UI scale
+        im = Image.new("RGBA", (round(110 * z), round(120 * z)), (0, 0, 0, 0))
         d = ImageDraw.Draw(im)
         h = CURSOR_HOT
         if pressed:
-            d.ellipse([h - 24, h - 24, h + 24, h + 24], outline=BRUSH_EDITOR, width=5)
-        k = 1.6 * (0.88 if pressed else 1.0)
+            d.ellipse([h - 24 * z, h - 24 * z, h + 24 * z, h + 24 * z], outline=BRUSH_EDITOR,
+                      width=max(2, round(5 * z)))
+        k = 1.6 * z * (0.88 if pressed else 1.0)
         arrow = [(0, 0), (0, 40), (10, 31), (17, 46), (24, 43), (17, 28), (30, 28)]
-        d.polygon([(h + x * k, h + y * k) for x, y in arrow], fill="white", outline=NAVY, width=3)
+        d.polygon([(h + x * k, h + y * k) for x, y in arrow], fill="white", outline=NAVY,
+                  width=max(2, round(3 * z)))
         return im
 
     def _cursor_to(self, x, y, pressed=False):
@@ -1508,16 +1621,18 @@ class Demo(tk.Tk):
         # magenta raw scribble on the left half, cyan PBC-aware stroke on the right
         # half: kept apart so they never share a tile
         strokes = []                                # preview-space boxes the copy attack avoids
-        for compliant, x_lo, x_hi in ((False, 40, tw / 2 - 170), (True, tw / 2 + 20, tw - 200)):
+        z = self.S                                  # scribble geometry follows the UI scale
+        for compliant, x_lo, x_hi in ((False, 40 * z, tw / 2 - 170 * z),
+                                      (True, tw / 2 + 20 * z, tw - 200 * z)):
             if compliant:                           # switch pens with a visible click
                 yield from self._demo_click(self.pen_btn)
                 self._set_pen(True)
                 yield 600
-            x0, y0 = random.uniform(x_lo, x_hi), random.uniform(50, th - 50)
-            length, amp = random.uniform(90, 150), random.uniform(10, 30)
+            x0, y0 = random.uniform(x_lo, x_hi), random.uniform(50 * z, th - 50 * z)
+            length, amp = random.uniform(90 * z, 150 * z), random.uniform(10 * z, 30 * z)
             cycles = random.uniform(1, 2.5)
-            strokes.append((x0 - BRUSH_PX, y0 - amp - BRUSH_PX,
-                            x0 + length + BRUSH_PX, y0 + amp + BRUSH_PX))
+            bp = BRUSH_PX * z
+            strokes.append((x0 - bp, y0 - amp - bp, x0 + length + bp, y0 + amp + bp))
             ox = (lbl.winfo_width() - lbl.image.width()) / 2
             oy = (lbl.winfo_height() - lbl.image.height()) / 2
             rx, ry = lbl.winfo_rootx() + ox, lbl.winfo_rooty() + oy
@@ -1592,6 +1707,11 @@ if __name__ == "__main__":
     app = Demo()
     if "--pace" in sys.argv[:-1]:
         app.pace = float(sys.argv[sys.argv.index("--pace") + 1])
+    if "--scale" in sys.argv[:-1]:                 # fixed size instead of following the window
+        app.auto_scale = False
+        app._apply_scale(float(sys.argv[sys.argv.index("--scale") + 1]))
+    if "--fullscreen" in sys.argv:
+        app.attributes("-fullscreen", True)
     if "--demo" in sys.argv:
         app.after(1500, app.start_demo)
     app.mainloop()
