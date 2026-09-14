@@ -256,6 +256,11 @@ class Demo(tk.Tk):
         self.configure(bg=NAVY)
         # the whole layout scales with the window (laptop screen, HDMI TV, fullscreen …)
         self.S, self.auto_scale, self.fonts, self._rescale_job = 1.0, True, {}, None
+        # use a font that is really installed: macOS has no Segoe UI, and Tk's fallback
+        # (".AppleSystemUIFont") is drawn wider than Tk measures at large sizes, clipping text
+        installed = set(tkfont.families(self))
+        self.ui_family = next((f for f in ("Segoe UI", "Helvetica Neue", "Arial", "DejaVu Sans")
+                               if f in installed), "TkDefaultFont")
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
         fit = fit_scale(sw - 40, sh - 90)
         w = min(sw - 40, round((72 + 1120 * fit) / 0.98))
@@ -450,8 +455,9 @@ class Demo(tk.Tk):
 
     # ---- resolution independence: one UI scale factor derived from the window size ----
 
-    def _font(self, size, bold=False, family="Segoe UI"):
+    def _font(self, size, bold=False, family=None):
         """Shared named font; resized in place (with every widget using it) on rescale."""
+        family = family or self.ui_family
         key = (family, size, bold)
         if key not in self.fonts:
             self.fonts[key] = tkfont.Font(family=family, size=max(8, round(size * self.S)),
