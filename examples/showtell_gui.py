@@ -39,9 +39,11 @@ from tkinter import filedialog, messagebox
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pbc import OpCode, generate_originator_id, compute_grid
+from pbc import OpCode, PBCBlock, generate_originator_id, compute_grid, compute_genesis_hash
 from pbc.encoder import encode, encode_region
 from pbc.decoder import verify, TileStatus, BlockStatus, extract_edit_ledger
+from pbc.scatter import (scatter_forest_encode, scatter_forest_verify,
+                         _generate_scatter_positions, _extract_block_bytes)
 from pbc.visualizer import generate_overlay
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -85,7 +87,15 @@ RUN_COMPARE_TEXT = [("Software", "NumPy + Pillow", "PyTorch + Lightning"),
                     ("Tells you", "which tiles changed", "watermark present?")]
 DEMO_SECTIONS = ["Intro", "Protect", "One chain per tile", "What it takes", "Edit",
                  "Verify", "Verdict", "Edit Ledger", "Intact tile", "Tampered tile",
-                 "Copied tile"]
+                 "Copied tile", "Crop survival"]
+# Slide 12 re-runs the paper's PBC-Forest crop experiment with its exact parameters
+# (examples/forest_scatter_test.py, tools/regenerate_paper_figures.py): leo.jpg,
+# 1,000 anchors, seed 42, centred crop keeping 60% of the width × 80% of the height
+# (47.9% of the area). The paper's figure reports 442/1000 anchors recovered.
+FOREST_ANCHORS, FOREST_SEED = 1000, 42
+FOREST_ORIGINATOR, FOREST_TS = "ForestScatterTest", 1_700_000_000
+CROP_W_FRAC, CROP_H_FRAC = 0.6, 0.8
+FOREST_PAPER_FOUND = 442
 # Verbatim excerpts of the ICIP 2026 paper (paper/PBC_ICIP2026_CameraReady.tex), opened
 # from the "▸ Paper: …" link in the explainer bar. LaTeX math and cross-references are
 # rendered as plain text; keep the wording identical to the paper.
@@ -148,6 +158,25 @@ PAPER_EXCERPTS = {
          "model, PBC does not by itself authenticate the originator or provide signed "
          "provenance."],
         None),
+    "forest": (
+        "PBC-Forest", "PBC-Forest: crop resilience",
+        "Sections “PBC-Forest: Crop-Resilient Scatter Mode” and “PBC-Forest: Crop Survival”",
+        ["At verify time the receiver scans the image for sync frames and CRC-valid blocks, "
+         "then verifies each block whose genesis hash matches its embedded forest index. Any "
+         "anchor whose 86-pixel span survived the crop is recovered independently. Forest mode "
+         "does not survive content-altering lossy compression; it survives spatial excision "
+         "(cropping, padding, aspect-ratio change) by statistical coverage: with enough "
+         "anchors, at least some positions survive most practically occurring crops.",
+         "… In grid mode, a single-pixel misalignment between the crop boundary and the tile "
+         "grid destroys all block synchronization, yielding zero recoverable genesis blocks "
+         "regardless of how much of the image survives. PBC-Forest's pseudo-random anchor "
+         "placement ensures that a statistically reliable fraction of anchors fall inside the "
+         "surviving region for any crop position or aspect ratio. We stress that this crop "
+         "resilience addresses spatial excision specifically and should not be read as "
+         "general robustness to lossy web or social-media transformations."],
+        "Paper figure: this exact crop recovers 442/1000 anchors (44.2%). Paper table: "
+        "PBC-Forest 41.1–44.6% survival, grid mode 0%. The crop keeps 60% of the width × 80% "
+        "of the height (47.9% of the image)."),
 }
 PREVIEW_W, PREVIEW_H = 560, 302   # fixed image boxes; leaves room for the explainer bar
 
@@ -1264,6 +1293,132 @@ class Demo(tk.Tk):
             self._cursor_to(rx + dx, ry + dy)
             yield 500
 
+    @staticmethod
+    def _captioned(im: Image.Image, text: str) -> Image.Image:
+        """Copy of an image with a dark caption strip, sized to read well in a preview."""
+        im = im.convert("RGB").copy()
+        s = max(1.0, im.width / PREVIEW_W, im.height / PREVIEW_H)
+        strip = round(26 * s)
+        d = ImageDraw.Draw(im)
+        d.rectangle([0, im.height - strip, im.width, im.height], fill=NAVY)
+        d.text((im.width / 2, im.height - strip / 2), text, fill="white",
+               font=label_font(round(14 * s))[0], anchor="mm")
+        return im
+
+    @staticmethod
+    def _forest_survivors(crop: np.ndarray, anchors, cx0: int, cy0: int) -> list:
+        """(x, y) in crop coordinates of every original anchor that still verifies: read at
+        its position in the crop, CRC-valid, and matching its own genesis hash."""
+        ch, cw = crop.shape[:2]
+        flat = crop.reshape(-1, 3)
+        found = []
+        for x, y in anchors:
+            if not (cx0 <= x < cx0 + cw and cy0 <= y < cy0 + ch):
+                continue
+            data = _extract_block_bytes(flat, (y - cy0) * cw + (x - cx0))
+            if data is None:
+                continue
+            b = PBCBlock.from_bits(data)
+            if b.block_index == 0 and b.chain_hash == compute_genesis_hash(
+                    b.originator_id, b.tile_x, b.tile_y, b.timestamp_delta):
+                found.append((x - cx0, y - cy0))
+        return found
+
+    def _demo_crop(self):
+        """Slide 12 (generator): the paper's crop experiment, live — grid mode on the left,
+        PBC-Forest on the right, same photo, same non-aligned crop."""
+        if self._ff() or self.original is None:
+            return
+        img = self.original
+        H, W = img.shape[:2]
+        cw, ch = int(W * CROP_W_FRAC), int(H * CROP_H_FRAC)
+        cx0, cy0 = (W - cw) // 2, (H - ch) // 2
+        self.verify_result = None                   # the panes no longer show the verdict grid
+
+        # both modes, paper parameters (~0.1 s in total on the vectorized code)
+        grid = encode(img, originator=FOREST_ORIGINATOR, timestamp=FOREST_TS)
+        forest = scatter_forest_encode(img, FOREST_ORIGINATOR, n_blocks=FOREST_ANCHORS,
+                                       seed=FOREST_SEED, timestamp=FOREST_TS)
+        n_anchors = min(FOREST_ANCHORS, (W * H) // 86)
+        anchors = [(int(p) % W, int(p) // W)
+                   for p in _generate_scatter_positions(W, H, FOREST_ANCHORS, FOREST_SEED)]
+        cols, rows, tw, th = compute_grid(W, H)
+        blocks = sum((((W if tx == cols - 1 else (tx + 1) * tw) - tx * tw) *
+                      ((H if ty == rows - 1 else (ty + 1) * th) - ty * th)) // 86
+                     for ty in range(rows) for tx in range(cols))
+
+        # before: grid-protected photo | Forest-protected photo with its anchors
+        s = max(1.0, W / PREVIEW_W, H / PREVIEW_H)
+        dots = Image.fromarray(forest)
+        d = ImageDraw.Draw(dots)
+        for x, y in anchors:
+            d.ellipse([x - 2.5 * s, y - 2.5 * s, x + 2.5 * s, y + 2.5 * s],
+                      fill=(45, 156, 219), outline="white")
+        self._show(self.left_lbl, self._captioned(
+            Image.fromarray(grid), f"GRID MODE · {cols * rows} tiles, {blocks:,} blocks"))
+        self._show(self.right_lbl, self._captioned(
+            dots, f"PBC-FOREST · {n_anchors:,} independent anchors"))
+        self.verdict.configure(text="")
+        self.status.configure(text="Same photo, two protection modes. Now crop it…")
+        yield 2500
+
+        # the crop: drag a box to the paper's crop, darkening what gets cut away
+        lbl = self.left_lbl
+        left_base, right_base = lbl.thumb.convert("RGBA"), self.right_lbl.thumb.convert("RGBA")
+        sc = lbl.scale
+        target = (cx0 / sc, cy0 / sc, (cx0 + cw) / sc, (cy0 + ch) / sc)
+        start = (0, 0, left_base.width, left_base.height)
+        rx = lbl.winfo_rootx() + (lbl.winfo_width() - lbl.image.width()) / 2
+        ry = lbl.winfo_rooty() + (lbl.winfo_height() - lbl.image.height()) / 2
+        yield from self._demo_point(rx + start[2], ry + start[3])
+        t0 = time.perf_counter()
+        while True:
+            k = min(1.0, (time.perf_counter() - t0) / 1.4)
+            e = k * k * (3 - 2 * k)
+            box = [start[i] + (target[i] - start[i]) * e for i in range(4)]
+            for pane, base in ((self.left_lbl, left_base), (self.right_lbl, right_base)):
+                shade = Image.new("RGBA", base.size, (0, 0, 0, round(160 * e)))
+                ImageDraw.Draw(shade).rectangle(box, fill=(0, 0, 0, 0),
+                                                outline=(255, 230, 80, 255), width=3)
+                pane.image.paste(Image.alpha_composite(base, shade).convert("RGB"))
+            self._cursor_to(rx + box[2], ry + box[3], pressed=True)
+            if k >= 1.0:
+                break
+            yield 30
+        self._cursor_to(rx + target[2], ry + target[3])
+        yield 400
+
+        # after: verify both crops with the real verifiers
+        grid_crop = np.ascontiguousarray(grid[cy0:cy0 + ch, cx0:cx0 + cw])
+        forest_crop = np.ascontiguousarray(forest[cy0:cy0 + ch, cx0:cx0 + cw])
+        gres = verify(grid_crop)
+        fres = scatter_forest_verify(forest_crop)
+        survivors = self._forest_survivors(forest_crop, anchors, cx0, cy0)
+        green = sum(t.status == TileStatus.GREEN for row in gres.tile_results for t in row)
+        n_tiles = gres.cols * gres.rows
+        found = fres.n_genesis_found
+        pct = 100 * found / n_anchors
+
+        cs = max(1.0, cw / PREVIEW_W, ch / PREVIEW_H)
+        survived = Image.fromarray(forest_crop)
+        d = ImageDraw.Draw(survived)
+        for x, y in survivors:
+            d.ellipse([x - 4 * cs, y - 4 * cs, x + 4 * cs, y + 4 * cs],
+                      fill=(39, 174, 96), outline="white")
+        self._show(self.left_lbl, self._captioned(
+            generate_overlay(grid_crop, gres, opacity=0.45),
+            f"GRID MODE · {green}/{n_tiles} tiles verify"))
+        self._show(self.right_lbl, self._captioned(
+            survived, f"PBC-FOREST · {found}/{n_anchors} anchors verify ({pct:.1f}%)"))
+        self.verdict.configure(
+            text=f"After the crop: grid {green}/{n_tiles} tiles · PBC-Forest {found}/{n_anchors} "
+                 f"anchors ({pct:.1f}%)", fg="white")
+        same = (found == FOREST_PAPER_FOUND and n_anchors == FOREST_ANCHORS
+                and (W, H) == (978, 678))
+        self.status.configure(
+            text=f"Crop kept 60% × 80% of the photo ({cw * ch / (W * H) * 100:.1f}%)"
+                 + (" — the same result as the paper's figure." if same else "."))
+
     def _tile_point(self, tx, ty):
         """Screen coordinates of a tile's centre on the verdict pane."""
         res, lbl = self.verify_result, self.right_lbl
@@ -1418,6 +1573,18 @@ class Demo(tk.Tk):
                 yield from self._demo_click(point=self._tile_point(t.tx, t.ty))
                 self._show_ledger(t.tx, t.ty)
                 yield self._bar_read_ms()
+        yield ("section", 11)
+        self._card("CROP SURVIVAL · PBC-FOREST",
+                   "A crop shifts every pixel against the tile grid, so grid mode loses sync "
+                   "entirely. PBC-Forest scatters 1,000 independent anchors instead: each one "
+                   "that survives the crop still verifies on its own.", ref="forest")
+        # crop while this card is read: one countdown covers the animation and the rest
+        read_ms, t_card = max(self._bar_read_ms(), 14000), time.perf_counter()
+        if not self._ff():
+            self.pie_span = True
+            self._pie(read_ms)
+        yield from self._demo_crop()
+        yield max(0, int(read_ms - (time.perf_counter() - t_card) * 1000))   # rest of the card
         yield 1500
 
 
