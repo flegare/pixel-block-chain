@@ -271,6 +271,9 @@ class Demo(tk.Tk):
         self.original = None          # np.ndarray, loaded photo
         self.protected = None         # np.ndarray, encoded
         self.work_mtime = None        # newest saved-file mtime seen (live watcher)
+        # the watcher scans Desktop/Downloads/… only after "edit in Preview": touching those
+        # folders makes macOS ask for file-access permission, which must not pop up on VERIFY
+        self.watch_external = False
         self.verify_path = None       # file VERIFY reads back from disk
         self.edit_img = None          # PIL image the DRAW step paints on
         self.dirty = False            # in-window strokes not saved yet
@@ -714,7 +717,7 @@ class Demo(tk.Tk):
     def _watch(self):
         """Poll every second for an external editor's save — in place or as
         Preview's '… copy.png' — and load it back so VERIFY reads that file."""
-        if self.work_mtime is not None and not self.busy:   # PROTECT's own save isn't an edit
+        if self.watch_external and self.work_mtime is not None and not self.busy:
             stem = os.path.splitext(os.path.basename(WORK_PNG))[0]
             try:
                 files = [f for d in WATCH_DIRS
@@ -907,6 +910,7 @@ class Demo(tk.Tk):
         self.original = np.array(img, dtype=np.uint8)
         self.protected = None
         self.work_mtime, self.dirty, self.drawing = None, False, False
+        self.watch_external = False
         self.left_lbl.configure(cursor="")
         self._set_pen(False)
         self.copy_target = None
@@ -1021,6 +1025,7 @@ class Demo(tk.Tk):
             return messagebox.showinfo("PBC", "Protect the image first (step 1).")
         self._hide_grid()
         self._save_edits()               # editor opens the current image
+        self.watch_external = True       # now look for the editor's save (in place or a copy)
         open_in_editor(WORK_PNG)
         self.status.configure(
             text="Draw / erase / clone anything in the editor, then SAVE "
@@ -1541,6 +1546,11 @@ class Demo(tk.Tk):
         self.status.configure(
             text=f"Crop kept 60% × 80% of the photo ({cw * ch / (W * H) * 100:.1f}%)"
                  + (" — the same result as the paper's figure." if same else "."))
+        # VERIFY now checks what the left pane shows: the cropped grid-mode image, from disk
+        Image.fromarray(grid_crop).save(WORK_PNG, compress_level=1)
+        self.work_mtime = os.path.getmtime(WORK_PNG)
+        self.verify_path, self.dirty = WORK_PNG, False
+        self.edit_img = Image.fromarray(grid_crop)
 
     def _tile_point(self, tx, ty):
         """Screen coordinates of a tile's centre on the verdict pane."""
