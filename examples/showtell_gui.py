@@ -24,6 +24,7 @@ import subprocess
 import platform
 import tempfile
 import glob
+import shutil
 import math
 import random
 import types
@@ -57,7 +58,7 @@ NAVY, BLUE, ICE = "#002855", "#00629B", "#E4ECF4"
 GREEN, RED, YELLOW, GRAY = "#27AE60", "#E74C3C", "#F2C94C", "#9AA5B1"
 PANE_BG = "#001B3A"
 BTN_OFF_BG, BTN_OFF_FG = "#12365E", "#5C7896"   # disabled: dim but readable
-ALL_STEPS = {"load", "protect", "edit", "preview", "verify", "reset"}
+ALL_STEPS = {"load", "protect", "edit", "preview", "verify", "save", "reset"}
 BRUSH, BRUSH_PX = "#FF00FF", 14   # in-window pen: colour, on-screen width
 BRUSH_EDITOR = "#00C2FF"          # PBC-aware editor pen (re-encoded + logged)
 PEN_LEGEND = [(BRUSH, "■ MAGENTA = raw tamper → RED"),
@@ -326,6 +327,7 @@ class Demo(tk.Tk):
         mk("protect", "1 · PROTECT", self.protect)
         mk("edit", "2 · DRAW", self.edit)
         mk("verify", "3 · VERIFY", self.do_verify)
+        mk("save", "Save as…", self.save_as)
         mk("reset", "Reset", self.reset)
 
         info = tk.Frame(self, bg=NAVY)
@@ -908,6 +910,7 @@ class Demo(tk.Tk):
         if max(img.size) > MAX_SIDE:
             img.thumbnail((MAX_SIDE, MAX_SIDE))
         self.original = np.array(img, dtype=np.uint8)
+        self.src_stem = os.path.splitext(os.path.basename(path))[0]   # Save as… default name
         self.protected = None
         self.work_mtime, self.dirty, self.drawing = None, False, False
         self.watch_external = False
@@ -1031,6 +1034,37 @@ class Demo(tk.Tk):
             text="Draw / erase / clone anything in the editor, then SAVE "
                  "(keep PNG!) — it loads back here automatically.")
         self._set_buttons(ALL_STEPS, "verify")
+
+    def save_as(self):
+        """Save the current left image (protected, plus any edits) wherever the visitor
+        wants. Always PNG: JPEG's lossy compression wipes the LSB chains."""
+        if self.edit_img is None:
+            return messagebox.showinfo("PBC", "Protect the image first (step 1).")
+        if self.dirty:
+            self._save_edits()           # fold the drawing (and pen re-encode) into the file
+        stem = getattr(self, "src_stem", "image").removesuffix("_pbc").replace("pbc_demo_", "")
+        path = filedialog.asksaveasfilename(
+            title="Save protected image", defaultextension=".png",
+            initialfile=f"{stem}_pbc.png", filetypes=[("PNG — lossless, keeps PBC", "*.png")])
+        if not path:
+            return
+        if os.path.splitext(path)[1].lower() != ".png":
+            path = os.path.splitext(path)[0] + ".png"
+        src = self.verify_path if self.verify_path and os.path.exists(self.verify_path) \
+            and self.verify_path.lower().endswith(".png") else None
+        try:
+            if src:
+                if os.path.abspath(src) != os.path.abspath(path):
+                    shutil.copyfile(src, path)   # byte-for-byte what VERIFY checks
+            else:
+                self.edit_img.save(path)
+            res = verify(np.array(Image.open(path).convert("RGB"), dtype=np.uint8))
+        except Exception as ex:
+            return messagebox.showerror("PBC", f"Could not save:\n{ex}")
+        tiles = [t for row in res.tile_results for t in row]
+        found = sum(t.status != TileStatus.ABSENT for t in tiles)
+        self.status.configure(text=f"Saved {os.path.basename(path)} — PBC chain read back "
+                                   f"in {found}/{len(tiles)} tiles. Keep it as PNG.")
 
     def do_verify(self):
         if self.busy:
