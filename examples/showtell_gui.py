@@ -924,10 +924,12 @@ class Demo(tk.Tk):
                                        f"a PBC chain. Press 3 · VERIFY.")
             self._set_buttons(ALL_STEPS, "verify")
         else:
-            self.verify_path, self.edit_img = None, None
+            # no chain detected, but VERIFY stays available to check the file as-is
+            self.verify_path, self.edit_img = path, None
             self.status.configure(text=f"Loaded {os.path.basename(path)} "
-                                       f"({img.width}x{img.height}). Press 1 · PROTECT.")
-            self._set_buttons({"load", "protect", "reset"}, "protect")
+                                       f"({img.width}x{img.height}). Press 1 · PROTECT, "
+                                       f"or 3 · VERIFY to check it as-is.")
+            self._set_buttons({"load", "protect", "verify", "reset"}, "protect")
 
     def load_photo(self):
         path = filedialog.askopenfilename(
@@ -1107,7 +1109,9 @@ class Demo(tk.Tk):
                 counts[t.status] += 1
         g, y, r, a = (counts[TileStatus.GREEN], counts[TileStatus.YELLOW],
                       counts[TileStatus.RED], counts[TileStatus.ABSENT])
-        if r == 0 and a == 0 and y == 0:
+        if a and g == y == r == 0:       # nothing embedded at all: not a tamper
+            txt, col = f"NO PBC DATA — this image was never protected ({a} tiles ABSENT)", GRAY
+        elif r == 0 and a == 0 and y == 0:
             txt, col = f"INTACT — {g} tiles GREEN", GREEN
         elif r > 0 or a > 0:
             txt, col = (f"TAMPERED — {r + a} tile(s) flagged, "
